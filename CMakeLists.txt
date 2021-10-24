@@ -105,6 +105,10 @@ add_executable(collector src/collector.c
                          src/ethernet.c
                          version.c)
 
+add_executable(emitter   src/emitter.c
+                         src/ethernet.c
+                         version.c)
+
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
 find_library(PCAP_LIBRARY pcap REQUIRED)
@@ -112,6 +116,7 @@ find_library(NET_LIBRARY net REQUIRED)
 find_library(CONFIG_LIBRARY config REQUIRED)
 
 target_link_libraries(collector PRIVATE pcap net pthread)
+target_link_libraries(emitter PRIVATE pcap net pthread)
 
 # Install
 

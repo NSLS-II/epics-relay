@@ -60,7 +60,7 @@ int debug_flag = -1;
 #define PORT    5064
 #define MAXLINE 4096
 #define EPICSRELAY_CONFIG_MAX_STRING    2048
-#define EPICSRELAY_PCAP_PROGRAM         "(ether broadcast) && (udp port 5064)"
+#define PCAP_PROGRAM "(ether broadcast) && (udp port 5064 || udp port 5065)"
 #define IP_PROTO_UDP                0x11
 #ifndef ETHERTYPE_8021Q
 #define ETHERTYPE_8021Q       0x8100
@@ -213,10 +213,10 @@ int capture_stop(void) {
 int main() {
   epicsrelay_params params;
 
-  snprintf(params.device, EPICSRELAY_CONFIG_MAX_STRING, "eno1.653");
+  snprintf(params.device, EPICSRELAY_CONFIG_MAX_STRING, "ens32");
   params.pcap_timeout = 1;
   strncpy(params.program,
-          EPICSRELAY_PCAP_PROGRAM,
+          PCAP_PROGRAM,
           EPICSRELAY_CONFIG_MAX_STRING);
 
   // Creating socket file descriptor
@@ -228,7 +228,7 @@ int main() {
   memset(&params.servaddr, 0, sizeof(params.servaddr));
   params.servaddr.sin_family = AF_INET;
   params.servaddr.sin_port = htons(9999);
-  params.servaddr.sin_addr.s_addr = inet_addr("10.69.0.37");
+  params.servaddr.sin_addr.s_addr = inet_addr("10.69.0.38");
 
   capture_start(&params);
 

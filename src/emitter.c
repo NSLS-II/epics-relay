@@ -44,11 +44,12 @@
 
 #include "debug.h"
 #include "ethernet.h"
+#include "emitter.h"
 
 int debug_flag = -1;
 uint8_t hw_bcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-int send_udp(char *packet, int packet_len) {
+int send_udp_packet(unsigned char *packet, int packet_len) {
   int rtn = -1;
   libnet_t *lnet;
   struct libnet_ether_addr* hw_addr = NULL;
@@ -61,51 +62,90 @@ int send_udp(char *packet, int packet_len) {
   struct udphdr *uptr = (struct udphdr *)
     (packet + ether_header_size(packet) + sizeof(struct ipbdy));
 
-  int len = ether_header_size(packet);
-  len += sizeof(struct ipbdy) + sizeof(struct udphdr);
-  char *data = packet + len;
-  len = packet_len - len;
+  int payload_len = ether_header_size(packet);
+  payload_len += sizeof(struct ipbdy) + sizeof(struct udphdr);
+  unsigned char *payload = packet + payload_len;
+  payload_len = packet_len - payload_len;
+
+  DEBUG_PRINT("Payload len = %d\n", payload_len);
 
   DEBUG_PRINT("Source MAC : %s\n", int_to_mac(eptr->ether_shost));
   DEBUG_PRINT("Source IP : %s\n", inet_ntoa(iptr->ip_sip));
 
-  lnet = libnet_init(LIBNET_LINK, NULL, errbuf);
+  // Initialize libnet
+
+  lnet = libnet_init(LIBNET_LINK, "ens32", errbuf);
   if (lnet == NULL) {
-    printf("Error with libnet_init(): %s", errbuf);
-    return -1;
+    ERROR_PRINT("Error with libnet_init(): %s", errbuf);
+    goto _error;
   }
 
   // Get hardware (MAC) address
 
   if ((hw_addr = libnet_get_hwaddr(lnet)) == NULL) {
     ERROR_COMMENT("Unable to read HW address.\n");
-    return -1;
+    goto _error;
   }
 
   struct in_addr bcast;
-  inet_aton("10.69.0.255", &bcast);
+  inet_aton("10.69.2.255", &bcast);
+  struct in_addr src_test;
+  inet_aton("10.69.3.38", &src_test);
 
-  libnet_ptag_t eth = 0;                 /* Ethernet protocol tag */
+  libnet_ptag_t udp_t = 0;  // UDP protocol tag
+  libnet_ptag_t ipv4_t = 0;  // IP protocol tag
+  libnet_ptag_t eth_t = 0;  // Ethernet protocol tag
+
   /* build the ethernet header */
-  eth = libnet_build_udp(htons(uptr->sport),
-                         htons(uptr->dport), len, 0,
-                         data, len, lnet, 0);
+  udp_t = libnet_build_udp(
+    htons(uptr->sport),                          // src port
+    htons(uptr->dport),                          // dst port
+    LIBNET_UDP_H + payload_len,                  // Total packet length
+    0,                                           // checksum (autofill)
+    payload,                                     // payload
+    payload_len,                                 // length of payload
+    lnet, udp_t);
 
-  eth = libnet_build_ipv4(LIBNET_IPV4_H + LIBNET_UDP_H + len,
-                          0, 242,
-                          0, 64, IPPROTO_UDP, 0,
-                          iptr->ip_sip.s_addr,
-                          bcast.s_addr, NULL, 0, lnet, 0);
+  if (udp_t == -1) {
+    ERROR_COMMENT("Unable to create UDP packet\n");
+    goto _error;
+  }
 
-  eth = libnet_build_ethernet(hw_bcast,
-                              eptr->ether_shost,
-                              ETHERTYPE_IP,
-                              NULL,
-                              0,
-                              lnet,
-                              0);
+  ipv4_t = libnet_build_ipv4(
+    LIBNET_IPV4_H + LIBNET_UDP_H + payload_len,   // Total packet length
+    iptr->tos,                                    // Type of service
+    libnet_get_prand(LIBNET_PRu16),               // Packet id
+    0x4000,                                       // Frag (don't frag)
+    iptr->ttl,                                    // Time to live
+    IPPROTO_UDP,                                  // Protocol
+    0,                                            // Checksum (autofill)
+    iptr->ip_sip.s_addr,                          // Source IP
+    // src_test.s_addr,
+    bcast.s_addr,                                 // Dest IP
+    NULL, 0,                                      // Payload
+    lnet, ipv4_t);
 
-  /* write the packet */
+  if (ipv4_t == -1) {
+    ERROR_COMMENT("Unable to create IPV4 packet\n");
+    goto _error;
+  }
+
+  eth_t = libnet_build_ethernet(
+    hw_bcast,                                     // Dest hw address
+    // eptr->ether_shost,                            // Source hw address
+    (uint8_t*)hw_addr,                            // Interface HW Address
+    ETHERTYPE_IP,                                 // Type
+    NULL,                                         // Payload
+    0,                                            // Payload size
+    lnet, eth_t);
+
+  if (eth_t == -1) {
+    ERROR_COMMENT("Unable to create ETH packet\n");
+    goto _error;
+  }
+
+  // Write the packet and send on the wire
+
   if ((libnet_write(lnet)) == -1) {
     ERROR_COMMENT("Unable to write packet.");
     goto _error;
@@ -120,8 +160,8 @@ _error:
 int main(void) {
   int socket_desc;
   struct sockaddr_in server_addr, client_addr;
-  char server_message[2000], client_message[2000];
-  int client_struct_length = sizeof(client_addr);
+  unsigned char client_message[2000];
+  unsigned int client_struct_length = sizeof(client_addr);
 
   // Create UDP socket:
   socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -135,7 +175,7 @@ int main(void) {
   // Set port and IP:
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(9999);
-  server_addr.sin_addr.s_addr = inet_addr("10.69.0.37");
+  server_addr.sin_addr.s_addr = inet_addr("10.69.0.38");
 
   // Bind to the set port and IP:
   if (bind(socket_desc, (struct sockaddr*)&server_addr,
@@ -160,6 +200,6 @@ int main(void) {
     printf("Received message from IP: %s and port: %i\n",
           inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-    send_udp(client_message, rc);
+    send_udp_packet(client_message, rc);
   }
 }
