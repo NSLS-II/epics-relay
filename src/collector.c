@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
@@ -73,12 +74,94 @@ pcap_t *pcap_description = NULL;
 
 typedef struct {
   int sockfd;
+  int fd_ns;
+  int fd_beacon;
   struct sockaddr_in servaddr;
   int pcap_timeout;
   char program[EPICSRELAY_CONFIG_MAX_STRING];
   char device[EPICSRELAY_CONFIG_MAX_STRING];
   unsigned char hwaddress[ETH_ALEN];
 } epicsrelay_params;
+
+int max(int x, int y) {
+  if (x > y)
+    return x;
+  else
+    return y;
+}
+
+int bind_socket(const char* ip, uint16_t port, int* fd) {
+  int broadcast = 1;
+
+  struct sockaddr_in si;
+  *fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (*fd == -1) {
+    return -1;
+  }
+
+  setsockopt(*fd, SOL_SOCKET, SO_BROADCAST,
+             &broadcast, sizeof(broadcast));
+
+  memset(&si, 0, sizeof(si));
+  si.sin_family = AF_INET;
+  si.sin_port = htons(port);
+  si.sin_addr.s_addr = inet_addr(ip);
+
+  if (bind(*fd, (struct sockaddr *)&si,
+           sizeof(struct sockaddr)) == -1) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int setup_sockets(epicsrelay_params *params) {
+  if (bind_socket("10.69.3.255", 5064, &params->fd_ns)) {
+    return -1;
+  }
+  if (bind_socket("10.69.3.255", 5065, &params->fd_beacon)) {
+    return -1;
+  }
+  return 0;
+}
+
+void listen_start(epicsrelay_params *params) {
+  fd_set socks;
+  struct timeval timeout;
+  timeout.tv_sec = 1; timeout.tv_usec = 0;
+
+  FD_ZERO(&socks);
+
+  int maxfd = max(params->fd_ns, params->fd_beacon) + 1;
+  while (1) {
+    FD_SET(params->fd_ns, &socks);
+    FD_SET(params->fd_beacon, &socks);
+
+    select(maxfd, &socks, NULL, NULL, &timeout);
+
+    if (FD_ISSET(params->fd_ns, &socks)) {
+      char buf[10000];
+      struct sockaddr_in si;
+      unsigned slen = sizeof(struct sockaddr);
+      recvfrom(params->fd_ns, buf, sizeof(buf)-1, 0,
+              (struct sockaddr *)&si, &slen);
+
+      DEBUG_PRINT("Recieve name: %s:%d\n",
+                  inet_ntoa(si.sin_addr), ntohs(si.sin_port));
+    }
+
+    if (FD_ISSET(params->fd_beacon, &socks)) {
+      char buf[10000];
+      struct sockaddr_in si;
+      unsigned slen = sizeof(struct sockaddr);
+      recvfrom(params->fd_beacon, buf, sizeof(buf)-1, 0,
+              (struct sockaddr *)&si, &slen);
+
+      DEBUG_PRINT("Recieve beacon: %s:%d\n",
+                  inet_ntoa(si.sin_addr), ntohs(si.sin_port));
+    }
+  }
+}
 
 int capture_ip_packet(epicsrelay_params *params,
                       const struct pcap_pkthdr* pkthdr,
@@ -230,7 +313,8 @@ int main() {
   params.servaddr.sin_port = htons(9999);
   params.servaddr.sin_addr.s_addr = inet_addr("10.69.0.38");
 
-  capture_start(&params);
+  setup_sockets(&params);
+  listen_start(&params);
 
   return 0;
 }

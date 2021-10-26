@@ -120,7 +120,6 @@ int send_udp_packet(unsigned char *packet, int packet_len) {
     IPPROTO_UDP,                                  // Protocol
     0,                                            // Checksum (autofill)
     iptr->ip_sip.s_addr,                          // Source IP
-    // src_test.s_addr,
     bcast.s_addr,                                 // Dest IP
     NULL, 0,                                      // Payload
     lnet, ipv4_t);
@@ -132,7 +131,6 @@ int send_udp_packet(unsigned char *packet, int packet_len) {
 
   eth_t = libnet_build_ethernet(
     hw_bcast,                                     // Dest hw address
-    // eptr->ether_shost,                            // Source hw address
     (uint8_t*)hw_addr,                            // Interface HW Address
     ETHERTYPE_IP,                                 // Type
     NULL,                                         // Payload
