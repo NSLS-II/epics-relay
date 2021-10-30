@@ -61,11 +61,11 @@ int debug_flag = -1;
 #define PORT    5064
 
 #define MAX_FD        50
-uint16_t listen_ports[] = {5064, 5065, 5076};
 
 typedef struct {
   int fd;
   int fd_listen[MAX_FD];
+  int listen_ports[MAX_FD];
   int fd_listen_max;
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
@@ -73,12 +73,10 @@ typedef struct {
 } collector_params;
 
 int setup_sockets(collector_params *params) {
-  params->fd_listen_max = sizeof(listen_ports) / sizeof(uint16_t);
-
   for (int i = 0; i < params->fd_listen_max; i++) {
-    DEBUG_PRINT("Setting up port %d\n", listen_ports[i]);
+    DEBUG_PRINT("Setting up port %d\n", params->listen_ports[i]);
     if (bind_socket(params->iface_listen.broadcast,
-                    listen_ports[i],
+                    params->listen_ports[i],
                     1, &params->fd_listen[i])) {
       return -1;
     }
@@ -100,31 +98,36 @@ void listen_start(collector_params *params) {
 
   FD_ZERO(&socks);
 
-  // TODO(swilkins) fix the buffer!
-  char data[10000];
+  // Allocate data buffer
+  char data[2048];
+
+  // Set header struct
   struct proto_udp_header *header = (struct proto_udp_header*)data;
   memset(header, 0, sizeof(struct proto_udp_header));
   header->version = PROTO_VERSION;
 
+  // Find max fd
   int maxfd = intmax(params->fd_listen, params->fd_listen_max);
+
+  // Loop forever!
   while (1) {
     for (int i = 0; i < params->fd_listen_max; i++) {
       FD_SET(params->fd_listen[i], &socks);
     }
 
+    // Setup select for multiple descriptors
     select(maxfd, &socks, NULL, NULL, &timeout);
 
     struct sockaddr_in si;
     unsigned slen = sizeof(struct sockaddr);
 
     // Cycle through fd
-    int len = 0;
     for (int i = 0; i < params->fd_listen_max; i++) {
       if (FD_ISSET(params->fd_listen[i], &socks)) {
-        len = recvfrom(params->fd_listen[i],
-                      (data + sizeof(struct proto_udp_header)),
-                      sizeof(data) - sizeof(struct proto_udp_header) - 1,
-                      0, (struct sockaddr *)&si, &slen);
+        int len = recvfrom(params->fd_listen[i],
+                           (data + sizeof(struct proto_udp_header)),
+                           sizeof(data) - sizeof(struct proto_udp_header) - 1,
+                           0, (struct sockaddr *)&si, &slen);
 
         DEBUG_PRINT("Recieve %d: %s:%d %d bytes\n", i,
                     inet_ntoa(si.sin_addr), ntohs(si.sin_port), len);
@@ -135,10 +138,11 @@ void listen_start(collector_params *params) {
             continue;
           }
 
+          // Fill in the header with packet data
           header->payload_len = len;
           header->src_ip = si.sin_addr.s_addr;
           header->src_port = si.sin_port;
-          header->dst_port = htons(listen_ports[i]);
+          header->dst_port = htons(params->listen_ports[i]);
           header->dst_ip = params->iface_listen.broadcast.s_addr;
 
           // Now transmit header
@@ -152,13 +156,14 @@ void listen_start(collector_params *params) {
             continue;
           }
 
+#ifdef DEBUG
           char name[INET_ADDRSTRLEN];
           if (inet_ntop(AF_INET, &(emitter_addr.sin_addr),
                         name, sizeof(name))) {
             DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
                         name, ntohs(emitter_addr.sin_port));
           }
-
+#endif
           break;
         }
       }
@@ -167,6 +172,12 @@ void listen_start(collector_params *params) {
 }
 
 int start_collector(collector_params *params) {
+  // Setup ports to listen to
+  params->listen_ports[0] = 5064;
+  params->listen_ports[1] = 5065;
+  params->listen_ports[2] = 5076;
+  params->fd_listen_max = 3;
+
   // if (bind_socket(params.iface.address, 9999, 0, &params.fd)) {
   struct in_addr any;
   any.s_addr = INADDR_ANY;
@@ -186,6 +197,7 @@ int main(int argc, char *argv[]) {
 
   (void)argc;
   (void)argv;
+
 
   if (get_interface("ens192", &(params.iface))) {
     ERROR_COMMENT("Unable to get iface data\n");
