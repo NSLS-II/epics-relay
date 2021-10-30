@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -52,7 +53,7 @@
 #include <netinet/if_ether.h>
 #include <libnet.h>
 
-int debug_flag = -1;
+int debug_flag = 0;
 
 #include "ethernet.h"
 #include "debug.h"
@@ -71,6 +72,12 @@ typedef struct {
   struct ifdatav4 iface_listen;
   struct in_addr emitter;
 } collector_params;
+
+static struct option long_options[] = {
+  {"debug", no_argument, &debug_flag, -1},
+  {"iface", required_argument, 0, 'i'},
+  {0, 0, 0, 0}
+};
 
 int setup_sockets(collector_params *params) {
   for (int i = 0; i < params->fd_listen_max; i++) {
@@ -178,10 +185,7 @@ int start_collector(collector_params *params) {
   params->listen_ports[2] = 5076;
   params->fd_listen_max = 3;
 
-  // if (bind_socket(params.iface.address, 9999, 0, &params.fd)) {
-  struct in_addr any;
-  any.s_addr = INADDR_ANY;
-  if (bind_socket(any, PROTO_UDP_PORT, 0, &params->fd)) {
+  if (bind_socket(params->iface.address, PROTO_UDP_PORT, 0, &params->fd)) {
     ERROR_COMMENT("Unable to bind....\n");
     return -1;
   }
@@ -194,21 +198,60 @@ int start_collector(collector_params *params) {
 
 int main(int argc, char *argv[]) {
   collector_params params;
+  char *iface = NULL;
+  char *iface_listen = NULL;
+  char *emitter_ip = NULL;
 
-  (void)argc;
-  (void)argv;
+  // Parse command line options
+  while (1) {
+    int option_index = 0;
+    int c = getopt_long(argc, argv, "i:",
+                        long_options, &option_index);
+    if (c == -1) {
+      break;
+    }
 
+    switch (c) {
+    case 0:
+      /* If this option set a flag, do nothing else now. */
+      if (long_options[option_index].flag != 0)
+        break;
+      printf("option %s", long_options[option_index].name);
+      if (optarg) {
+        printf(" with arg %s", optarg);
+      }
+      printf("\n");
+      break;
+    case 'i':
+      iface = optarg;
+      break;
+    case '?':
+    default:
+      break;
+    }
+  }
 
-  if (get_interface("ens192", &(params.iface))) {
+  int extra = argc - optind;
+  DEBUG_PRINT("Extra opts : %d\n", extra);
+
+  if (extra != 2) {
+    ERROR_COMMENT("Incorrect options on command line\n");
+    exit(-1);
+  }
+
+  iface_listen = argv[optind++];
+  emitter_ip = argv[optind++];
+
+  if (get_interface(iface, &(params.iface))) {
     ERROR_COMMENT("Unable to get iface data\n");
     return -1;
   }
-  if (get_interface("ens224", &(params.iface_listen))) {
+  if (get_interface(iface_listen, &(params.iface_listen))) {
     ERROR_COMMENT("Unable to get iface data\n");
     return -1;
   }
 
-  if (inet_pton(AF_INET, "10.69.0.38", &params.emitter) != 1) {
+  if (inet_pton(AF_INET, emitter_ip, &params.emitter) != 1) {
     ERROR_COMMENT("Unable to convert emitter address\n");
     return -1;
   }

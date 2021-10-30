@@ -144,8 +144,16 @@ const char * int_to_mac(unsigned char *addr) {
 }
 
 int get_interface(const char *device, struct ifdatav4 *interface) {
-  struct ifaddrs *ifaddr;
+  // If the device is null, fill with wide standards
+  if (device == NULL) {
+    // Fill in all zeros
+    interface->address.s_addr = INADDR_ANY;
+    interface->broadcast.s_addr = INADDR_BROADCAST;
+    interface->netmask.s_addr = INADDR_NONE;
+    return 0;
+  }
 
+  struct ifaddrs *ifaddr;
   if (getifaddrs(&ifaddr) == -1) {
     ERROR_COMMENT("ERROR: getifaddrs");
     return -1;
