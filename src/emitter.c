@@ -62,22 +62,13 @@ int check_udp_packet(struct ifdatav4 *iface,
 
   // Check packet is NOT from subnet
 
-  uint32_t _packet_net = header->src_ip & iface->netmask.s_addr;
-  uint32_t _local_net = iface->address.s_addr & iface->netmask.s_addr;
-
-  char name[INET_ADDRSTRLEN];
-  if (inet_ntop(AF_INET, &_packet_net, name, sizeof(name))) {
-    DEBUG_PRINT("Packet net : %s\n", name);
-  }
-  if (inet_ntop(AF_INET, &_local_net, name, sizeof(name))) {
-    DEBUG_PRINT("Local net : %s\n", name);
+  struct in_addr ip;
+  ip.s_addr = header->src_ip;
+  if (is_native_packet(&ip, iface)) {
+    return -1;
   }
 
-  if (_packet_net != _local_net) {
-    return 0;
-  }
-
-  return -1;
+  return 0;
 }
 
 void close_libnet(struct libnet_params *params) {
