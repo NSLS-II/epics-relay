@@ -59,8 +59,6 @@ int debug_flag = 0;
 #include "debug.h"
 #include "proto.h"
 
-#define PORT    5064
-
 #define MAX_FD        50
 
 typedef struct {
