@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
 
   // Setup libnet
   struct libnet_params lnet_params;
-  setup_libnet(&lnet_params, "ens32");
+  setup_libnet(&lnet_params, iface_emit);
 
   // Set broadcast address
   lnet_params.bcast = dif_epics.broadcast;
