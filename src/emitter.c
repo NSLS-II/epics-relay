@@ -173,7 +173,9 @@ int main(void) {
   get_interface("ens32", &epics_iface);
   get_interface("ens192", &iface);
 
-  if (bind_socket(iface.address, 9999, 0, &fd)) {
+  struct in_addr any;
+  any.s_addr = INADDR_ANY;
+  if (bind_socket(any, PROTO_UDP_PORT, 0, &fd)) {
     ERROR_COMMENT("Unable to bind to socket\n");
     exit(-1);
   }

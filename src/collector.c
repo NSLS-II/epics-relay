@@ -59,28 +59,29 @@ int debug_flag = -1;
 #include "proto.h"
 
 #define PORT    5064
-#define MAXLINE 4096
-#define EPICSRELAY_CONFIG_MAX_STRING    2048
 
-unsigned char mac_zeros[] = {0, 0, 0, 0, 0, 0};
-unsigned char mac_bcast[] = {255, 255, 255, 255, 255, 255};
+#define MAX_FD        50
+uint16_t listen_ports[] = {5064, 5065, 5076};
 
 typedef struct {
   int fd;
-  int fd_ns;
-  int fd_beacon;
+  int fd_listen[MAX_FD];
+  int fd_listen_max;
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
+  struct in_addr emitter;
 } collector_params;
 
 int setup_sockets(collector_params *params) {
-  if (bind_socket(params->iface_listen.broadcast, 5064,
-                  1, &params->fd_ns)) {
-    return -1;
-  }
-  if (bind_socket(params->iface_listen.broadcast, 5065,
-                  1, &params->fd_beacon)) {
-    return -1;
+  params->fd_listen_max = sizeof(listen_ports) / sizeof(uint16_t);
+
+  for (int i = 0; i < params->fd_listen_max; i++) {
+    DEBUG_PRINT("Setting up port %d\n", listen_ports[i]);
+    if (bind_socket(params->iface_listen.broadcast,
+                    listen_ports[i],
+                    1, &params->fd_listen[i])) {
+      return -1;
+    }
   }
   return 0;
 }
@@ -90,87 +91,101 @@ void listen_start(collector_params *params) {
   struct timeval timeout;
   timeout.tv_sec = 1; timeout.tv_usec = 0;
 
-  struct sockaddr_in servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_port = htons(9999);
-  inet_aton("10.69.0.38", &servaddr.sin_addr);
+  // Emitter setup
+  struct sockaddr_in emitter_addr;
+  memset(&emitter_addr, 0, sizeof(emitter_addr));
+  emitter_addr.sin_family = AF_INET;
+  emitter_addr.sin_port = htons(PROTO_UDP_PORT);
+  emitter_addr.sin_addr = params->emitter;
 
   FD_ZERO(&socks);
 
-  int maxfd = intmax(params->fd_ns, params->fd_beacon) + 1;
+  // TODO(swilkins) fix the buffer!
+  char data[10000];
+  struct proto_udp_header *header = (struct proto_udp_header*)data;
+  memset(header, 0, sizeof(struct proto_udp_header));
+  header->version = PROTO_VERSION;
+
+  int maxfd = intmax(params->fd_listen, params->fd_listen_max);
   while (1) {
-    FD_SET(params->fd_ns, &socks);
-    FD_SET(params->fd_beacon, &socks);
+    for (int i = 0; i < params->fd_listen_max; i++) {
+      FD_SET(params->fd_listen[i], &socks);
+    }
 
     select(maxfd, &socks, NULL, NULL, &timeout);
 
-    int len = 0;
-    char data[10000];
     struct sockaddr_in si;
     unsigned slen = sizeof(struct sockaddr);
 
-    if (FD_ISSET(params->fd_ns, &socks)) {
-      len = recvfrom(params->fd_ns,
-                     (data + sizeof(struct proto_udp_header)),
-                     sizeof(data) - sizeof(struct proto_udp_header) - 1,
-                     0, (struct sockaddr *)&si, &slen);
+    // Cycle through fd
+    int len = 0;
+    for (int i = 0; i < params->fd_listen_max; i++) {
+      if (FD_ISSET(params->fd_listen[i], &socks)) {
+        len = recvfrom(params->fd_listen[i],
+                      (data + sizeof(struct proto_udp_header)),
+                      sizeof(data) - sizeof(struct proto_udp_header) - 1,
+                      0, (struct sockaddr *)&si, &slen);
 
-      DEBUG_PRINT("Recieve name: %s:%d\n",
-                  inet_ntoa(si.sin_addr), ntohs(si.sin_port));
-    }
+        DEBUG_PRINT("Recieve %d: %s:%d %d bytes\n", i,
+                    inet_ntoa(si.sin_addr), ntohs(si.sin_port), len);
 
-    if (FD_ISSET(params->fd_beacon, &socks)) {
-      len = recvfrom(params->fd_beacon,
-                     (data + sizeof(struct proto_udp_header)),
-                     sizeof(data) - sizeof(struct proto_udp_header) - 1,
-                     0, (struct sockaddr *)&si, &slen);
-      DEBUG_PRINT("Recieve beacon: %s:%d\n",
-                  inet_ntoa(si.sin_addr), ntohs(si.sin_port));
-    }
+        if (len != 0) {
+          if (!is_native_packet(&(si.sin_addr), &(params->iface_listen))) {
+            DEBUG_COMMENT("Non native packet ... skipping ...\n");
+            continue;
+          }
 
-    // Check if packet is from local interface
+          header->payload_len = len;
+          header->src_ip = si.sin_addr.s_addr;
+          header->src_port = si.sin_port;
+          header->dst_port = htons(listen_ports[i]);
+          header->dst_ip = params->iface_listen.broadcast.s_addr;
 
-    if (len != 0) {
-      DEBUG_PRINT("len = %d\n", len);
+          // Now transmit header
+          int n = sendto(params->fd,
+                        data, sizeof(struct proto_udp_header) + len,
+                        0, (struct sockaddr *)(&emitter_addr),
+                        sizeof(emitter_addr));
 
-      if (!is_native_packet(&(si.sin_addr), &(params->iface_listen))) {
-        DEBUG_COMMENT("Non native packet ... skipping ...\n");
-        continue;
-      }
+          if (n < 0) {
+            ERROR_COMMENT("Unable to send....\n");
+            continue;
+          }
 
-      struct proto_udp_header *header = (struct proto_udp_header*)data;
-      memset(header, 0, sizeof(struct proto_udp_header));
-      header->version = PROTO_VERSION;
-      header->payload_len = len;
-      header->src_ip = si.sin_addr.s_addr;
-      header->src_port = si.sin_port;
-      // TODO(swilkins) add dest addr from bind
-      // header->dst_port = htons(5064);
+          char name[INET_ADDRSTRLEN];
+          if (inet_ntop(AF_INET, &(emitter_addr.sin_addr),
+                        name, sizeof(name))) {
+            DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
+                        name, ntohs(emitter_addr.sin_port));
+          }
 
-      // Now transmit header
-      int n = sendto(params->fd,
-                     data, sizeof(struct proto_udp_header) + len,
-                     0, (struct sockaddr *)(&servaddr),
-                     sizeof(servaddr));
-
-      if (n < 0) {
-        ERROR_COMMENT("Unable to send....\n");
-        continue;
-      }
-
-      char name[INET_ADDRSTRLEN];
-      if (inet_ntop(AF_INET, &(servaddr.sin_addr),
-                    name, sizeof(name))) {
-        DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
-                    name, ntohs(servaddr.sin_port));
+          break;
+        }
       }
     }
   }
 }
 
-int main() {
+int start_collector(collector_params *params) {
+  // if (bind_socket(params.iface.address, 9999, 0, &params.fd)) {
+  struct in_addr any;
+  any.s_addr = INADDR_ANY;
+  if (bind_socket(any, PROTO_UDP_PORT, 0, &params->fd)) {
+    ERROR_COMMENT("Unable to bind....\n");
+    return -1;
+  }
+
+  setup_sockets(params);
+  listen_start(params);
+
+  return 0;
+}
+
+int main(int argc, char *argv[]) {
   collector_params params;
+
+  (void)argc;
+  (void)argv;
 
   if (get_interface("ens192", &(params.iface))) {
     ERROR_COMMENT("Unable to get iface data\n");
@@ -181,16 +196,12 @@ int main() {
     return -1;
   }
 
-  if (bind_socket(params.iface.address, 9999, 0, &params.fd)) {
-    ERROR_COMMENT("Unable to bind....\n");
+  if (inet_pton(AF_INET, "10.69.0.38", &params.emitter) != 1) {
+    ERROR_COMMENT("Unable to convert emitter address\n");
     return -1;
   }
 
-  setup_sockets(&params);
-  listen_start(&params);
+  start_collector(&params);
 
-  close(params.fd);
-  close(params.fd_beacon);
-  close(params.fd_ns);
-  return 0;
+  // TODO(swilkins) close sockets
 }

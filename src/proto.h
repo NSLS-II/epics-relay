@@ -40,7 +40,8 @@
 
 #include <stdint.h>
 
-#define PROTO_VERSION 0x01;
+#define PROTO_VERSION     0x01
+#define PROTO_UDP_PORT    4000
 
 struct proto_udp_header {
   uint8_t version;

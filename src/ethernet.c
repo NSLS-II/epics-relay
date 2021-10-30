@@ -60,11 +60,15 @@ char hexchars[] = { '0', '1', '2', '3', '4', '5',
                     '6', '7', '8', '9', 'A', 'B',
                     'C', 'D', 'E', 'F' };
 
-int intmax(int x, int y) {
-  if (x > y)
-    return x;
-  else
-    return y;
+int intmax(int *val, int len) {
+  int max = 0;
+  for (int i = 0; i < len; i++) {
+    if (val[i] > max) {
+      max = val[i];
+    }
+  }
+
+  return max;
 }
 
 int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd) {

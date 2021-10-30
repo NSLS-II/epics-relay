@@ -89,7 +89,7 @@ struct ifdatav4 {
 
 int ether_header_size(const u_char *packet);
 const char * int_to_mac(unsigned char *addr);
-int intmax(int x, int y);
+int intmax(int *val, int len);
 int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd);
 int get_interface(const char *device, struct ifdatav4 *interface);
 int is_native_packet(struct in_addr *ip, struct ifdatav4 *iface);
