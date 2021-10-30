@@ -37,6 +37,7 @@
 //
 
 #include <stdio.h>
+#include <getopt.h>
 #include <string.h>
 #include <libnet.h>
 #include <sys/socket.h>
@@ -47,7 +48,14 @@
 #include "emitter.h"
 #include "proto.h"
 
-int debug_flag = -1;
+int debug_flag = 0;
+
+static struct option long_options[] = {
+  {"debug", no_argument, &debug_flag, -1},
+  {"iface", required_argument, 0, 'i'},
+  {0, 0, 0, 0}
+};
+
 uint8_t hw_bcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 int check_udp_packet(struct ifdatav4 *iface,
@@ -166,16 +174,52 @@ int send_udp_packet(struct libnet_params *params,
   return 0;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
   int fd;
-  struct ifdatav4 epics_iface, iface;
+  struct ifdatav4 dif_epics, dif;
+  char *iface = NULL;
+  char *iface_emit = NULL;
 
-  get_interface("ens32", &epics_iface);
-  get_interface("ens192", &iface);
+  // Parse command line options
+  while (1) {
+    int option_index = 0;
+    int c = getopt_long(argc, argv, "di:",
+                        long_options, &option_index);
+    if (c == -1) {
+      break;
+    }
 
-  struct in_addr any;
-  any.s_addr = INADDR_ANY;
-  if (bind_socket(any, PROTO_UDP_PORT, 0, &fd)) {
+    switch (c) {
+    case 0:
+      printf("Flag set\n");
+      break;
+    case 'i':
+      iface = optarg;
+      break;
+    case 'd':
+      debug_flag = -1;
+      break;
+    case '?':
+    default:
+      exit(-1);
+      break;
+    }
+  }
+
+  int extra = argc - optind;
+  DEBUG_PRINT("Extra opts : %d\n", extra);
+
+  if (extra != 1) {
+    ERROR_COMMENT("Incorrect options on command line\n");
+    exit(-1);
+  }
+
+  iface_emit = argv[optind++];
+
+  get_interface(iface_emit, &dif_epics);
+  get_interface(iface, &dif);
+
+  if (bind_socket(dif.address, PROTO_UDP_PORT, 0, &fd)) {
     ERROR_COMMENT("Unable to bind to socket\n");
     exit(-1);
   }
@@ -185,7 +229,7 @@ int main(void) {
   setup_libnet(&lnet_params, "ens32");
 
   // Set broadcast address
-  lnet_params.bcast = epics_iface.broadcast;
+  lnet_params.bcast = dif_epics.broadcast;
 
   struct sockaddr_in client_addr;
   unsigned int client_addr_len = sizeof(client_addr);
@@ -203,7 +247,7 @@ int main(void) {
         DEBUG_PRINT("Received message from IP: %s and port: %i\n", name,
                     ntohs(client_addr.sin_port));
       }
-      if (check_udp_packet(&epics_iface, buffer, rc)) {
+      if (check_udp_packet(&dif_epics, buffer, rc)) {
         ERROR_COMMENT("Packet check failed ... skipping ...\n");
         continue;
       }

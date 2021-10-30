@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
   // Parse command line options
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "i:",
+    int c = getopt_long(argc, argv, "di:",
                         long_options, &option_index);
     if (c == -1) {
       break;
@@ -223,8 +223,12 @@ int main(int argc, char *argv[]) {
     case 'i':
       iface = optarg;
       break;
+    case 'd':
+      debug_flag = -1;
+      break;
     case '?':
     default:
+      exit(-1);
       break;
     }
   }
