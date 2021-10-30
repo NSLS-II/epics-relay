@@ -68,8 +68,6 @@ int intmax(int x, int y) {
 }
 
 int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd) {
-  int broadcast = 1;
-
   struct sockaddr_in si;
   *fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (*fd == -1) {
@@ -77,9 +75,19 @@ int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd) {
     return -1;
   }
 
+  int enable = 1;
+  if (setsockopt(*fd, SOL_SOCKET, SO_REUSEADDR,
+                 &enable, sizeof(enable)) < 0) {
+    ERROR_COMMENT("Unable to set socket option SO_REUSEADDR\n");
+    return -1;
+  }
+
   if (bcast) {
-    setsockopt(*fd, SOL_SOCKET, SO_BROADCAST,
-              &broadcast, sizeof(broadcast));
+    if (setsockopt(*fd, SOL_SOCKET, SO_BROADCAST,
+                   &enable, sizeof(enable)) < 0) {
+      ERROR_COMMENT("Unable to set socket option SO_BROADCAST\n");
+      return -1;
+    }
   }
 
   memset(&si, 0, sizeof(si));
@@ -89,8 +97,19 @@ int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd) {
 
   if (bind(*fd, (struct sockaddr *)&si,
            sizeof(struct sockaddr)) == -1) {
-    ERROR_COMMENT("Bind failed\n");
+    char name[INET_ADDRSTRLEN];
+    if (inet_ntop(AF_INET, &(si.sin_addr),
+                  name, sizeof(name))) {
+      ERROR_PRINT("Unable to bind to %s:%d \n", name, ntohs(si.sin_port));
+    }
     return -1;
+  }
+
+
+  char name[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &(si.sin_addr),
+                name, sizeof(name))) {
+    DEBUG_PRINT("Bound to %s:%d \n", name, ntohs(si.sin_port));
   }
 
   return 0;
@@ -157,4 +176,25 @@ int get_interface(const char *device, struct ifdatav4 *interface) {
 
   freeifaddrs(ifaddr);
   return 0;
+}
+
+int is_native_packet(struct in_addr *ip, struct ifdatav4 *iface) {
+  uint32_t _packet_net = ip->s_addr & iface->netmask.s_addr;
+  uint32_t _local_net = iface->address.s_addr & iface->netmask.s_addr;
+
+  char name[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &_packet_net, name, sizeof(name))) {
+    DEBUG_PRINT("Packet net : %s\n", name);
+  }
+  if (inet_ntop(AF_INET, &_local_net, name, sizeof(name))) {
+    DEBUG_PRINT("Local net : %s\n", name);
+  }
+
+  if (_packet_net != _local_net) {
+    DEBUG_COMMENT("Non native packet\n");
+    return 0;
+  }
+
+  DEBUG_COMMENT("Native packet\n");
+  return 1;
 }

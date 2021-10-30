@@ -66,33 +66,35 @@ unsigned char mac_zeros[] = {0, 0, 0, 0, 0, 0};
 unsigned char mac_bcast[] = {255, 255, 255, 255, 255, 255};
 
 typedef struct {
-  int sockfd;
+  int fd;
   int fd_ns;
   int fd_beacon;
-  struct sockaddr_in servaddr;
-  int pcap_timeout;
-  char program[EPICSRELAY_CONFIG_MAX_STRING];
-  char device[EPICSRELAY_CONFIG_MAX_STRING];
-  unsigned char hwaddress[ETH_ALEN];
-} epicsrelay_params;
+  struct ifdatav4 iface;
+  struct ifdatav4 iface_listen;
+} collector_params;
 
-int setup_sockets(epicsrelay_params *params) {
-  struct in_addr bcast;
-  inet_pton(AF_INET, "10.69.3.255", &bcast);
-
-  if (bind_socket(bcast, 5064, 1, &params->fd_ns)) {
+int setup_sockets(collector_params *params) {
+  if (bind_socket(params->iface_listen.broadcast, 5064,
+                  1, &params->fd_ns)) {
     return -1;
   }
-  if (bind_socket(bcast, 5065, 1, &params->fd_beacon)) {
+  if (bind_socket(params->iface_listen.broadcast, 5065,
+                  1, &params->fd_beacon)) {
     return -1;
   }
   return 0;
 }
 
-void listen_start(epicsrelay_params *params) {
+void listen_start(collector_params *params) {
   fd_set socks;
   struct timeval timeout;
   timeout.tv_sec = 1; timeout.tv_usec = 0;
+
+  struct sockaddr_in servaddr;
+  memset(&servaddr, 0, sizeof(servaddr));
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_port = htons(9999);
+  inet_aton("10.69.0.38", &servaddr.sin_addr);
 
   FD_ZERO(&socks);
 
@@ -123,50 +125,72 @@ void listen_start(epicsrelay_params *params) {
                      (data + sizeof(struct proto_udp_header)),
                      sizeof(data) - sizeof(struct proto_udp_header) - 1,
                      0, (struct sockaddr *)&si, &slen);
-
       DEBUG_PRINT("Recieve beacon: %s:%d\n",
                   inet_ntoa(si.sin_addr), ntohs(si.sin_port));
     }
 
+    // Check if packet is from local interface
+
     if (len != 0) {
       DEBUG_PRINT("len = %d\n", len);
+
+      if (!is_native_packet(&(si.sin_addr), &(params->iface_listen))) {
+        DEBUG_COMMENT("Non native packet ... skipping ...\n");
+        continue;
+      }
+
       struct proto_udp_header *header = (struct proto_udp_header*)data;
       memset(header, 0, sizeof(struct proto_udp_header));
       header->version = PROTO_VERSION;
+      header->payload_len = len;
       header->src_ip = si.sin_addr.s_addr;
       header->src_port = si.sin_port;
       // TODO(swilkins) add dest addr from bind
-      header->dst_port = htons(5064);
-      header->version = 0;
-      header->payload_len = len;
+      // header->dst_port = htons(5064);
 
       // Now transmit header
-      int n = sendto(params->sockfd,
+      int n = sendto(params->fd,
                      data, sizeof(struct proto_udp_header) + len,
-                     0, (struct sockaddr *)(&params->servaddr),
-                     sizeof(params->servaddr));
-      DEBUG_PRINT("Sent %d bytes\n", n);
+                     0, (struct sockaddr *)(&servaddr),
+                     sizeof(servaddr));
+
+      if (n < 0) {
+        ERROR_COMMENT("Unable to send....\n");
+        continue;
+      }
+
+      char name[INET_ADDRSTRLEN];
+      if (inet_ntop(AF_INET, &(servaddr.sin_addr),
+                    name, sizeof(name))) {
+        DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
+                    name, ntohs(servaddr.sin_port));
+      }
     }
   }
 }
 
 int main() {
-  epicsrelay_params params;
+  collector_params params;
 
-  snprintf(params.device, EPICSRELAY_CONFIG_MAX_STRING, "ens32");
-  // Creating socket file descriptor
-  if ( (params.sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-      perror("socket creation failed");
-      exit(EXIT_FAILURE);
+  if (get_interface("ens192", &(params.iface))) {
+    ERROR_COMMENT("Unable to get iface data\n");
+    return -1;
+  }
+  if (get_interface("ens224", &(params.iface_listen))) {
+    ERROR_COMMENT("Unable to get iface data\n");
+    return -1;
   }
 
-  memset(&params.servaddr, 0, sizeof(params.servaddr));
-  params.servaddr.sin_family = AF_INET;
-  params.servaddr.sin_port = htons(9999);
-  params.servaddr.sin_addr.s_addr = inet_addr("10.69.0.38");
+  if (bind_socket(params.iface.address, 9999, 0, &params.fd)) {
+    ERROR_COMMENT("Unable to bind....\n");
+    return -1;
+  }
 
   setup_sockets(&params);
   listen_start(&params);
 
+  close(params.fd);
+  close(params.fd_beacon);
+  close(params.fd_ns);
   return 0;
 }
