@@ -35,19 +35,24 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
+#ifndef SRC_PROTO_H_
+#define SRC_PROTO_H_
 
-#ifndef SRC_EMITTER_H_
-#define SRC_EMITTER_H_
+#include <stdint.h>
 
-#include <libnet.h>
+#define PROTO_VERSION 0x01;
 
-struct libnet_params {
-  libnet_t *lnet;
-  struct libnet_ether_addr* hw_addr;
-  libnet_ptag_t udp_t;
-  libnet_ptag_t ipv4_t;
-  libnet_ptag_t eth_t;
-  struct in_addr bcast;
-};
+struct proto_udp_header {
+  uint8_t version;
+  uint8_t payload_len;
+  uint8_t type;
+  uint8_t _pad1;
+  uint32_t src_ip;
+  uint32_t dst_ip;
+  uint16_t src_port;
+  uint16_t dst_port;
+  uint32_t _pad2;
+  uint64_t _pad3;
+} __attribute__((__packed__));
 
-#endif  // SRC_EMITTER_H_
+#endif  // SRC_PROTO_H_

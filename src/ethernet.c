@@ -36,6 +36,7 @@
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -49,8 +50,8 @@
 #include <netinet/ip.h>
 #include <netinet/ether.h>
 #include <netinet/if_ether.h>
-#include <pcap.h>
-#include <libnet.h>
+#include <ifaddrs.h>
+#include <netdb.h>
 
 #include "debug.h"
 #include "ethernet.h"
@@ -58,6 +59,42 @@
 char hexchars[] = { '0', '1', '2', '3', '4', '5',
                     '6', '7', '8', '9', 'A', 'B',
                     'C', 'D', 'E', 'F' };
+
+int intmax(int x, int y) {
+  if (x > y)
+    return x;
+  else
+    return y;
+}
+
+int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd) {
+  int broadcast = 1;
+
+  struct sockaddr_in si;
+  *fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (*fd == -1) {
+    ERROR_COMMENT("Unable to get socket descriptor\n");
+    return -1;
+  }
+
+  if (bcast) {
+    setsockopt(*fd, SOL_SOCKET, SO_BROADCAST,
+              &broadcast, sizeof(broadcast));
+  }
+
+  memset(&si, 0, sizeof(si));
+  si.sin_family = AF_INET;
+  si.sin_port = htons(port);
+  si.sin_addr = ip;
+
+  if (bind(*fd, (struct sockaddr *)&si,
+           sizeof(struct sockaddr)) == -1) {
+    ERROR_COMMENT("Bind failed\n");
+    return -1;
+  }
+
+  return 0;
+}
 
 int ether_header_size(const u_char *packet) {
   struct ethernet_header *hdr = (struct ethernet_header *)packet;
@@ -83,18 +120,41 @@ const char * int_to_mac(unsigned char *addr) {
   return _mac;
 }
 
-void show_interface_broadaddr(int fd, const char *device) {
-  struct ifreq ifreq;
-  char host[128];
-  memset(&ifreq, 0, sizeof ifreq);
-  strncpy(ifreq.ifr_name, device, IFNAMSIZ);
+int get_interface(const char *device, struct ifdatav4 *interface) {
+  struct ifaddrs *ifaddr;
 
-  if (ioctl(fd, SIOCGIFBRDADDR, &ifreq) != 0) {
-    fprintf(stderr, "Could not find interface named %s", device);
-    return;
+  if (getifaddrs(&ifaddr) == -1) {
+    ERROR_COMMENT("ERROR: getifaddrs");
+    return -1;
   }
 
-  getnameinfo(&ifreq.ifr_broadaddr, sizeof(ifreq.ifr_broadaddr),
-              host, sizeof(host), 0, 0, NI_NUMERICHOST);
-  DEBUG_PRINT("Broadcast Address for %s is %s\n", device, host);
+  for (struct ifaddrs *ifa = ifaddr; ifa != NULL;
+       ifa = ifa->ifa_next) {
+    if (ifa->ifa_addr == NULL) {
+      continue;
+    }
+    if ((strcmp(ifa->ifa_name, device) == 0) &&
+        (ifa->ifa_addr->sa_family == AF_INET)) {
+      // We have our interface and its IPV4 addresses
+
+      DEBUG_PRINT("Found device %s\n", device);
+      interface->address =
+        ((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr;
+      DEBUG_PRINT("%s address   : %s\n", device,
+                  inet_ntoa(interface->address));
+
+      interface->netmask =
+        ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr;
+      DEBUG_PRINT("%s netmask   : %s\n", device,
+                  inet_ntoa(interface->netmask));
+
+      interface->broadcast =
+        ((struct sockaddr_in *)(ifa->ifa_broadaddr))->sin_addr;
+      DEBUG_PRINT("%s broadcast : %s\n", device,
+                  inet_ntoa(interface->broadcast));
+    }
+  }
+
+  freeifaddrs(ifaddr);
+  return 0;
 }

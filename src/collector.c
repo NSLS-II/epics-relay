@@ -36,7 +36,6 @@
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <pcap.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -57,20 +56,14 @@ int debug_flag = -1;
 
 #include "ethernet.h"
 #include "debug.h"
+#include "proto.h"
 
 #define PORT    5064
 #define MAXLINE 4096
 #define EPICSRELAY_CONFIG_MAX_STRING    2048
-#define PCAP_PROGRAM "(ether broadcast) && (udp port 5064 || udp port 5065)"
-#define IP_PROTO_UDP                0x11
-#ifndef ETHERTYPE_8021Q
-#define ETHERTYPE_8021Q       0x8100
-#endif
 
 unsigned char mac_zeros[] = {0, 0, 0, 0, 0, 0};
 unsigned char mac_bcast[] = {255, 255, 255, 255, 255, 255};
-pcap_t *pcap_description = NULL;
-
 
 typedef struct {
   int sockfd;
@@ -83,43 +76,14 @@ typedef struct {
   unsigned char hwaddress[ETH_ALEN];
 } epicsrelay_params;
 
-int max(int x, int y) {
-  if (x > y)
-    return x;
-  else
-    return y;
-}
-
-int bind_socket(const char* ip, uint16_t port, int* fd) {
-  int broadcast = 1;
-
-  struct sockaddr_in si;
-  *fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (*fd == -1) {
-    return -1;
-  }
-
-  setsockopt(*fd, SOL_SOCKET, SO_BROADCAST,
-             &broadcast, sizeof(broadcast));
-
-  memset(&si, 0, sizeof(si));
-  si.sin_family = AF_INET;
-  si.sin_port = htons(port);
-  si.sin_addr.s_addr = inet_addr(ip);
-
-  if (bind(*fd, (struct sockaddr *)&si,
-           sizeof(struct sockaddr)) == -1) {
-    return -1;
-  }
-
-  return 0;
-}
-
 int setup_sockets(epicsrelay_params *params) {
-  if (bind_socket("10.69.3.255", 5064, &params->fd_ns)) {
+  struct in_addr bcast;
+  inet_pton(AF_INET, "10.69.3.255", &bcast);
+
+  if (bind_socket(bcast, 5064, 1, &params->fd_ns)) {
     return -1;
   }
-  if (bind_socket("10.69.3.255", 5065, &params->fd_beacon)) {
+  if (bind_socket(bcast, 5065, 1, &params->fd_beacon)) {
     return -1;
   }
   return 0;
@@ -132,176 +96,64 @@ void listen_start(epicsrelay_params *params) {
 
   FD_ZERO(&socks);
 
-  int maxfd = max(params->fd_ns, params->fd_beacon) + 1;
+  int maxfd = intmax(params->fd_ns, params->fd_beacon) + 1;
   while (1) {
     FD_SET(params->fd_ns, &socks);
     FD_SET(params->fd_beacon, &socks);
 
     select(maxfd, &socks, NULL, NULL, &timeout);
 
+    int len = 0;
+    char data[10000];
+    struct sockaddr_in si;
+    unsigned slen = sizeof(struct sockaddr);
+
     if (FD_ISSET(params->fd_ns, &socks)) {
-      char buf[10000];
-      struct sockaddr_in si;
-      unsigned slen = sizeof(struct sockaddr);
-      recvfrom(params->fd_ns, buf, sizeof(buf)-1, 0,
-              (struct sockaddr *)&si, &slen);
+      len = recvfrom(params->fd_ns,
+                     (data + sizeof(struct proto_udp_header)),
+                     sizeof(data) - sizeof(struct proto_udp_header) - 1,
+                     0, (struct sockaddr *)&si, &slen);
 
       DEBUG_PRINT("Recieve name: %s:%d\n",
                   inet_ntoa(si.sin_addr), ntohs(si.sin_port));
     }
 
     if (FD_ISSET(params->fd_beacon, &socks)) {
-      char buf[10000];
-      struct sockaddr_in si;
-      unsigned slen = sizeof(struct sockaddr);
-      recvfrom(params->fd_beacon, buf, sizeof(buf)-1, 0,
-              (struct sockaddr *)&si, &slen);
+      len = recvfrom(params->fd_beacon,
+                     (data + sizeof(struct proto_udp_header)),
+                     sizeof(data) - sizeof(struct proto_udp_header) - 1,
+                     0, (struct sockaddr *)&si, &slen);
 
       DEBUG_PRINT("Recieve beacon: %s:%d\n",
                   inet_ntoa(si.sin_addr), ntohs(si.sin_port));
     }
-  }
-}
 
-int capture_ip_packet(epicsrelay_params *params,
-                      const struct pcap_pkthdr* pkthdr,
-                      const u_char* packet) {
-  struct ether_header *eptr = (struct ether_header *) packet;
-  struct ipbdy *iptr = (struct ipbdy *) (packet + ether_header_size(packet));
+    if (len != 0) {
+      DEBUG_PRINT("len = %d\n", len);
+      struct proto_udp_header *header = (struct proto_udp_header*)data;
+      memset(header, 0, sizeof(struct proto_udp_header));
+      header->version = PROTO_VERSION;
+      header->src_ip = si.sin_addr.s_addr;
+      header->src_port = si.sin_port;
+      // TODO(swilkins) add dest addr from bind
+      header->dst_port = htons(5064);
+      header->version = 0;
+      header->payload_len = len;
 
-  // Process any IP Packets that are broadcast
-
-  DEBUG_PRINT("Iface : %s Packet time : %ld Broadcast Source:  %-20s %-16s\n",
-              params->device,
-              pkthdr->ts.tv_sec,
-              ether_ntoa((const struct ether_addr *)&eptr->ether_shost),
-              inet_ntoa(iptr->ip_sip));
-
-  if (iptr->proto == IP_PROTO_UDP) {
-    // We have a UDP Packet
-    struct udphdr *uptr = (struct udphdr *)(packet
-                          + ether_header_size(packet)
-                          + sizeof(struct ipbdy));
-    DEBUG_PRINT("UDP Port : %d\n", htons(uptr->dport));
-    sendto(params->sockfd, packet, pkthdr->len, 0,
-           (struct sockaddr *)(&params->servaddr), sizeof(params->servaddr));
-  }
-  return 0;
-}
-
-void capture_callback(u_char *args, const struct pcap_pkthdr* pkthdr,
-                      const u_char* packet) {
-  epicsrelay_params *params = (epicsrelay_params*)args;
-  DEBUG_COMMENT("Enter\n");
-
-  struct ethernet_header *eptr = (struct ethernet_header *) packet;
-  uint16_t type = ntohs(eptr->ether_type);
-  if (type == ETHERTYPE_IP) {
-    DEBUG_COMMENT("IP Packet\n");
-    capture_ip_packet(params, pkthdr, packet);
-  } else {
-    ERROR_COMMENT("Invalid Packet\n");
-  }
-}
-
-int capture_start(epicsrelay_params *params) {
-  char errbuf[PCAP_ERRBUF_SIZE];
-  struct bpf_program fp;
-  bpf_u_int32 maskp;
-  bpf_u_int32 netp;
-
-  pcap_if_t *interfaces = NULL, *temp;
-
-  int rtn = -1;
-
-  if (pcap_findalldevs(&interfaces, errbuf)) {
-    ERROR_COMMENT("pcap_findalldevs() : ERROR\n");
-    goto _error;
-  }
-
-  if (!interfaces) {
-    goto _error;
-  }
-
-  int found = 0;
-  for (temp=interfaces; temp; temp=temp->next) {
-    DEBUG_PRINT("Found interface : %s\n", temp->name);
-    if (!strcmp(temp->name, params->device)) {
-      found = 1;
-      break;
+      // Now transmit header
+      int n = sendto(params->sockfd,
+                     data, sizeof(struct proto_udp_header) + len,
+                     0, (struct sockaddr *)(&params->servaddr),
+                     sizeof(params->servaddr));
+      DEBUG_PRINT("Sent %d bytes\n", n);
     }
   }
-
-  if (!found) {
-    ERROR_PRINT("Interface %s is not valid.\n", params->device);
-    goto _error;
-  }
-
-  // Get the mac address of the interface
-  struct ifreq ifr;
-  int s = socket(AF_INET, SOCK_DGRAM, 0);
-  strncpy(ifr.ifr_name, params->device, IFNAMSIZ);
-  ioctl(s, SIOCGIFHWADDR, &ifr);
-  memcpy(params->hwaddress, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
-  // DEBUG_PRINT("MAC Address of %s : %s\n",
-  //             params->device,
-  //             int_to_mac(params->hwaddress));
-  close(s);
-
-  // Get the IP address and netmask of the interface
-  pcap_lookupnet(params->device, &netp, &maskp, errbuf);
-
-  pcap_description = pcap_open_live(params->device, BUFSIZ, 1,
-                         params->pcap_timeout, errbuf);
-  if (pcap_description == NULL) {
-    ERROR_PRINT("pcap_open_live(): ERROR : %s\n", errbuf);
-    goto _error;
-  }
-
-  DEBUG_PRINT("Opened interface : %s\n", params->device);
-
-  // Compile the pcap program
-  if (pcap_compile(pcap_description, &fp, params->program, 0, netp) == -1) {
-    ERROR_COMMENT("pcap_compile() : ERROR\n");
-    goto _error;
-  }
-
-  // Filter based on compiled program
-  if (pcap_setfilter(pcap_description, &fp) == -1) {
-    ERROR_COMMENT("pcap_setfilter() : ERROR\n");
-    goto _error;
-  }
-
-  NOTICE_PRINT("Starting capture on : %s\n", params->device);
-  pcap_loop(pcap_description, -1, capture_callback,
-            (u_char*)(params));
-
-  rtn = 0;
-
-_error:
-  if (interfaces) pcap_freealldevs(interfaces);
-
-  return rtn;
 }
 
-int capture_stop(void) {
-  if (pcap_description) {
-    pcap_breakloop(pcap_description);
-  }
-
-  return 0;
-}
-
-// Driver code
 int main() {
   epicsrelay_params params;
 
   snprintf(params.device, EPICSRELAY_CONFIG_MAX_STRING, "ens32");
-  params.pcap_timeout = 1;
-  strncpy(params.program,
-          PCAP_PROGRAM,
-          EPICSRELAY_CONFIG_MAX_STRING);
-
   // Creating socket file descriptor
   if ( (params.sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
       perror("socket creation failed");

@@ -36,18 +36,4 @@
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef SRC_EMITTER_H_
-#define SRC_EMITTER_H_
-
-#include <libnet.h>
-
-struct libnet_params {
-  libnet_t *lnet;
-  struct libnet_ether_addr* hw_addr;
-  libnet_ptag_t udp_t;
-  libnet_ptag_t ipv4_t;
-  libnet_ptag_t eth_t;
-  struct in_addr bcast;
-};
-
-#endif  // SRC_EMITTER_H_
+#include "epics.h"

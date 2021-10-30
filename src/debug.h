@@ -38,6 +38,8 @@
 #ifndef SRC_DEBUG_H_
 #define SRC_DEBUG_H_
 
+#include <stdio.h>
+
 extern int debug_flag;
 
 #ifdef SYSTEMD

@@ -46,24 +46,6 @@
 
 #define ETHERTYPE_8021Q       0x8100
 
-struct ca_proto_msg {
-  uint16_t command;
-  uint16_t payload_size;
-  uint16_t data;
-  uint16_t count;
-  uint32_t param1;
-  uint32_t param2;
-} __attribute__((__packed__));
-
-struct ca_proto_search {
-  uint16_t command;
-  uint16_t payload_size;
-  uint16_t reply;
-  uint16_t version;
-  uint32_t cid1;
-  uint32_t cid2;
-} __attribute__((__packed__));
-
 struct ethernet_header {
   uint8_t ether_dhost[ETH_ALEN];
   uint8_t ether_shost[ETH_ALEN];
@@ -99,8 +81,16 @@ struct udphdr {
   uint16_t checksum;
 } __attribute__((__packed__));
 
+struct ifdatav4 {
+  struct in_addr address;
+  struct in_addr netmask;
+  struct in_addr broadcast;
+};
+
 int ether_header_size(const u_char *packet);
 const char * int_to_mac(unsigned char *addr);
-void show_interface_broadaddr(int fd, const char *name);
+int intmax(int x, int y);
+int bind_socket(struct in_addr ip, uint16_t port, int bcast, int* fd);
+int get_interface(const char *device, struct ifdatav4 *interface);
 
 #endif  // SRC_ETHERNET_H_

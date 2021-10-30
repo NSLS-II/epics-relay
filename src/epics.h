@@ -35,19 +35,25 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
+#ifndef SRC_EPICS_H_
+#define SRC_EPICS_H_
 
-#ifndef SRC_EMITTER_H_
-#define SRC_EMITTER_H_
+struct ca_proto_msg {
+  uint16_t command;
+  uint16_t payload_size;
+  uint16_t data;
+  uint16_t count;
+  uint32_t param1;
+  uint32_t param2;
+} __attribute__((__packed__));
 
-#include <libnet.h>
+struct ca_proto_search {
+  uint16_t command;
+  uint16_t payload_size;
+  uint16_t reply;
+  uint16_t version;
+  uint32_t cid1;
+  uint32_t cid2;
+} __attribute__((__packed__));
 
-struct libnet_params {
-  libnet_t *lnet;
-  struct libnet_ether_addr* hw_addr;
-  libnet_ptag_t udp_t;
-  libnet_ptag_t ipv4_t;
-  libnet_ptag_t eth_t;
-  struct in_addr bcast;
-};
-
-#endif  // SRC_EMITTER_H_
+#endif  // SRC_EPICS_H_
