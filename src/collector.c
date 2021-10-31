@@ -59,6 +59,7 @@ int debug_flag = 0;
 #include "debug.h"
 #include "proto.h"
 #include "epics.h"
+#include "collector.h"
 
 #define MAX_FD        50
 
