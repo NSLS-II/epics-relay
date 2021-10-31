@@ -113,11 +113,10 @@ add_executable(emitter   src/emitter.c
 
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
-find_library(PCAP_LIBRARY pcap REQUIRED)
 find_library(NET_LIBRARY net REQUIRED)
-find_library(CONFIG_LIBRARY config REQUIRED)
+find_library(NET_LIBRARY pcre2-8 REQUIRED)
 
-target_link_libraries(collector PRIVATE pcap net pthread)
+target_link_libraries(collector PRIVATE pcre2-8 pcap net pthread)
 target_link_libraries(emitter PRIVATE pcap net pthread)
 
 # Install
