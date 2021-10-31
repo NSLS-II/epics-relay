@@ -58,6 +58,7 @@ int debug_flag = 0;
 #include "ethernet.h"
 #include "debug.h"
 #include "proto.h"
+#include "epics.h"
 
 #define MAX_FD        50
 
@@ -149,6 +150,10 @@ void listen_start(collector_params *params) {
           header->src_port = si.sin_port;
           header->dst_port = htons(params->listen_ports[i]);
           header->dst_ip = params->iface_listen.broadcast.s_addr;
+
+          // Now read EPICS data
+
+          epics_read_packet(data + sizeof(struct proto_udp_header), len);
 
           // Now transmit header
           int n = sendto(params->fd,

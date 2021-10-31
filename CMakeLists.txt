@@ -103,10 +103,12 @@ add_custom_command(
 # add the executable
 add_executable(collector src/collector.c
                          src/ethernet.c
+                         src/epics.c
                          version.c)
 
 add_executable(emitter   src/emitter.c
                          src/ethernet.c
+                         src/epics.c
                          version.c)
 
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)

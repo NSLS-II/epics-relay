@@ -227,8 +227,6 @@ int main(int argc, char *argv[]) {
   // Setup libnet
   struct libnet_params lnet_params;
   setup_libnet(&lnet_params, iface_emit);
-
-  // Set broadcast address
   lnet_params.bcast = dif_epics.broadcast;
 
   struct sockaddr_in client_addr;
