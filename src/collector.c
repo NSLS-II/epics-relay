@@ -286,6 +286,11 @@ int main(int argc, char *argv[]) {
     params.filter.next = NULL;
   } else {
     params.filter.next = epics_filter_load(regex_file);
+    if (params.filter.next == NULL) {
+      // Error loading file
+      ERROR_PRINT("Error with regex file %s\n", regex_file);
+      exit(-1);
+    }
   }
 
   start_collector(&params);

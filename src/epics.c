@@ -63,7 +63,14 @@ struct epics_pv_filter_elem* epics_filter_load(const char *filename) {
     // Remove newline
     line[strcspn(line, "\r\n")] = 0;
     DEBUG_PRINT("Read : %s\n", line);
+
     current = epics_filter_add(line);
+
+    if (current == NULL) {
+      // Invalid regex
+      return NULL;
+    }
+
     if (!first) {
       first = current;
     } else {
