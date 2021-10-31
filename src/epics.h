@@ -47,8 +47,14 @@
 #define CA_PROTO_RSRV_IS_UP   13
 
 struct epics_pv_filter {
+  int sense;        // Sense !=0 explicit include
+  int logic;        // Logic !=0 and else or
+  struct epics_pv_filter_elem *next;
+};
+
+struct epics_pv_filter_elem {
   pcre2_code *re;
-  struct epics_pv_filter *next;
+  struct epics_pv_filter_elem *next;
 };
 
 struct ca_proto_msg {
@@ -94,6 +100,8 @@ struct epics_pv {
   int cid2;
 };
 
+struct epics_pv_filter_elem* epics_filter_load(const char *filename);
+struct epics_pv_filter_elem* epics_filter_add(const char *exp);
 int epics_read_packet(char* dest, const char* src, int len,
                       struct epics_pv_filter *filter);
 

@@ -71,12 +71,13 @@ typedef struct {
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
   struct in_addr emitter;
-  struct epics_pv_filter *filter;
+  struct epics_pv_filter filter;
 } collector_params;
 
 static struct option long_options[] = {
   {"debug", no_argument, &debug_flag, -1},
   {"iface", required_argument, 0, 'i'},
+  {"regex", required_argument, 0, 'r'},
   {0, 0, 0, 0}
 };
 
@@ -155,8 +156,8 @@ void listen_start(collector_params *params) {
           // Now read EPICS data
 
           int _len = epics_read_packet(data_dst +
-                                         sizeof(struct proto_udp_header),
-                                       data_src, len, params->filter);
+                                       sizeof(struct proto_udp_header),
+                                       data_src, len, &(params->filter));
           DEBUG_PRINT("_len = %d\n", _len);
           if (!_len) {
             // We have no valid packet
@@ -215,11 +216,12 @@ int main(int argc, char *argv[]) {
   char *iface = NULL;
   char *iface_listen = NULL;
   char *emitter_ip = NULL;
+  char *regex_file = NULL;
 
   // Parse command line options
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "di:",
+    int c = getopt_long(argc, argv, "di:r:",
                         long_options, &option_index);
     if (c == -1) {
       break;
@@ -241,6 +243,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'd':
       debug_flag = -1;
+      break;
+    case 'r':
+      regex_file = optarg;
       break;
     case '?':
     default:
@@ -274,9 +279,17 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  params.filter = NULL;
+  params.filter.sense = 0;
+  params.filter.logic = 0;
+
+  if (regex_file == NULL) {
+    params.filter.next = NULL;
+  } else {
+    params.filter.next = epics_filter_load(regex_file);
+  }
 
   start_collector(&params);
 
   // TODO(swilkins) close sockets
+  // TODO(swilkins) destroy linked list
 }

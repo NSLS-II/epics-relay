@@ -45,6 +45,74 @@
 #include "ethernet.h"
 #include "epics.h"
 
+struct epics_pv_filter_elem* epics_filter_load(const char *filename) {
+  FILE * fp;
+  char * line = NULL;
+  size_t len = 0;
+  ssize_t read;
+
+  if ((fp = fopen(filename, "r")) == NULL) {
+    return NULL;
+  }
+
+  struct epics_pv_filter_elem *first = NULL;
+  struct epics_pv_filter_elem *last = NULL;
+  struct epics_pv_filter_elem *current;
+
+  while ((read = getline(&line, &len, fp)) != -1) {
+    // Remove newline
+    line[strcspn(line, "\r\n")] = 0;
+    DEBUG_PRINT("Read : %s\n", line);
+    current = epics_filter_add(line);
+    if (!first) {
+      first = current;
+    } else {
+      last->next = current;
+    }
+    last = current;
+  }
+
+  fclose(fp);
+  if (line) {
+    free(line);
+  }
+
+  return first;
+}
+
+struct epics_pv_filter_elem* epics_filter_add(const char *exp) {
+  struct epics_pv_filter_elem *elem =
+    (struct epics_pv_filter_elem *)malloc(sizeof(struct epics_pv_filter_elem));
+
+  if (elem == NULL) {
+    ERROR_COMMENT("Unable to allocate memory\n");
+    return NULL;
+  }
+
+  int errornumber;
+  PCRE2_SIZE erroroffset;
+  elem->re = pcre2_compile(
+    (PCRE2_SPTR)exp,        // the pattern
+    PCRE2_ZERO_TERMINATED,  // indicates pattern is zero-terminated
+    0,                      // default options
+    &errornumber,           // for error number
+    &erroroffset,           // for error offset
+    NULL);                  // use default compile context
+
+  if (elem->re == NULL) {
+    PCRE2_UCHAR buffer[256];
+    pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+    ERROR_PRINT("PCRE2 compilation failed at offset %d: %s\n",
+                (int)erroroffset, buffer);
+
+    free(elem);
+    return NULL;
+  }
+
+  elem->next = NULL;  // This is byt default the last item
+  return elem;
+}
+
 int round_up(int num, int factor) {
     return num + factor - 1 - (num + factor - 1) % factor;
 }
@@ -104,35 +172,57 @@ int epics_process_search(char *dst, const char *src, int *dst_len,
   pos += len;
 
   int match = 0;
+  if (filter->next == NULL) {
+    DEBUG_COMMENT("No regex matching...\n");
+    match = 1;
+  }
 
-  for (struct epics_pv_filter *f = filter;
+  // Loop through linked list
+  for (struct epics_pv_filter_elem *f = filter->next;
        f != NULL; f = f->next) {
     pcre2_match_data *match_data =
       pcre2_match_data_create_from_pattern(f->re, NULL);
     int rc = pcre2_match(
-      f->re,                /* the compiled pattern */
-      (PCRE2_SPTR)pv,       /* the subject string */
-      strlen(pv),           /* the length of the subject */
-      0,                    /* start at offset 0 in the subject */
-      0,                    /* default options */
-      match_data,           /* block for storing the result */
-      NULL);                /* use default match context */
+      f->re,                // the compiled pattern
+      (PCRE2_SPTR)pv,       // the subject string
+      len,                  // the length of the subject
+      0,                    // start at offset 0 in the subject
+      0,                    // default options
+      match_data,           // block for storing the result
+      NULL);                // use default match context
 
-    if (rc < 0) {
+    // We use sense as an XOR.
+    if (!(rc < 0) != !filter->sense) {
       DEBUG_COMMENT("Match failed\n");
+      if (filter->logic) {
+        // Logical AND. As we failed, quit and
+        // set no match
+        match = 0;
+        break;
+      } else {
+        match = 0;
+      }
     } else {
       DEBUG_COMMENT("Match succeeded\n");
+      if (!filter->logic) {
+        // Logical OR. As we matched,
+        // set the match and stop
+        match = 1;
+        break;
+      } else {
+        match = 1;
+      }
     }
-
     pcre2_match_data_free(match_data);
   }
 
   if (match) {
-    DEBUG_COMMENT("Match exclude PV\n");
-    *dst_len = 0;
-  } else {
+    DEBUG_COMMENT("Match include PV\n");
     *dst_len = pos;
     memcpy(dst, src, pos);
+  } else {
+    DEBUG_COMMENT("Match exclude PV\n");
+    *dst_len = 0;
   }
   DEBUG_PRINT("pos = %d dst_len = %d\n", pos, *dst_len);
   return pos;
