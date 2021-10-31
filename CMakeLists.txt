@@ -117,7 +117,7 @@ find_library(NET_LIBRARY net REQUIRED)
 find_library(NET_LIBRARY pcre2-8 REQUIRED)
 
 target_link_libraries(collector PRIVATE pcre2-8 pcap net pthread)
-target_link_libraries(emitter PRIVATE pcap net pthread)
+target_link_libraries(emitter PRIVATE pcre2-8 pcap net pthread)
 
 # Install
 

@@ -37,7 +37,8 @@
 //
 
 #include <string.h>
-#include <regex.h>
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #include <arpa/inet.h>
 
 #include "debug.h"
@@ -72,7 +73,8 @@ int epics_process_beacon(const char *packet) {
   return sizeof(struct ca_proto_rsrv_is_up);
 }
 
-int epics_process_search(char *dst, const char *src, int *dst_len) {
+int epics_process_search(char *dst, const char *src, int *dst_len,
+                         struct epics_pv_filter *filter) {
   struct ca_proto_search *req =
     (struct ca_proto_search *)src;
   int pos = sizeof(struct ca_proto_search);
@@ -102,6 +104,29 @@ int epics_process_search(char *dst, const char *src, int *dst_len) {
   pos += len;
 
   int match = 0;
+
+  for (struct epics_pv_filter *f = filter;
+       f != NULL; f = f->next) {
+    pcre2_match_data *match_data =
+      pcre2_match_data_create_from_pattern(f->re, NULL);
+    int rc = pcre2_match(
+      f->re,                /* the compiled pattern */
+      (PCRE2_SPTR)pv,       /* the subject string */
+      strlen(pv),           /* the length of the subject */
+      0,                    /* start at offset 0 in the subject */
+      0,                    /* default options */
+      match_data,           /* block for storing the result */
+      NULL);                /* use default match context */
+
+    if (rc < 0) {
+      DEBUG_COMMENT("Match failed\n");
+    } else {
+      DEBUG_COMMENT("Match succeeded\n");
+    }
+
+    pcre2_match_data_free(match_data);
+  }
+
   if (match) {
     DEBUG_COMMENT("Match exclude PV\n");
     *dst_len = 0;
@@ -113,7 +138,8 @@ int epics_process_search(char *dst, const char *src, int *dst_len) {
   return pos;
 }
 
-int epics_read_packet(char* dest, const char* src, int len) {
+int epics_read_packet(char* dest, const char* src, int len,
+                      struct epics_pv_filter *filter) {
   int pos = 0;
   int pos_dest = 0;
 
@@ -137,7 +163,8 @@ int epics_read_packet(char* dest, const char* src, int len) {
     } else if (htons(msg->command) == CA_PROTO_SEARCH) {
       DEBUG_COMMENT("Valid CA_SEARCH_REQUEST\n");
       int _pos_dest = 0;
-      _pos = epics_process_search(dest + pos_dest, src + pos, &_pos_dest);
+      _pos = epics_process_search(dest + pos_dest, src + pos, &_pos_dest,
+                                  filter);
       pos += _pos;
       pos_dest += _pos_dest;
     } else if (htons(msg->command) == CA_PROTO_RSRV_IS_UP) {

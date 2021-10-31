@@ -71,6 +71,7 @@ typedef struct {
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
   struct in_addr emitter;
+  struct epics_pv_filter *filter;
 } collector_params;
 
 static struct option long_options[] = {
@@ -155,7 +156,7 @@ void listen_start(collector_params *params) {
 
           int _len = epics_read_packet(data_dst +
                                          sizeof(struct proto_udp_header),
-                                       data_src, len);
+                                       data_src, len, params->filter);
           DEBUG_PRINT("_len = %d\n", _len);
           if (!_len) {
             // We have no valid packet
@@ -272,6 +273,8 @@ int main(int argc, char *argv[]) {
     ERROR_COMMENT("Unable to convert emitter address\n");
     return -1;
   }
+
+  params.filter = NULL;
 
   start_collector(&params);
 

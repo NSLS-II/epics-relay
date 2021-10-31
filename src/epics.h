@@ -94,6 +94,7 @@ struct epics_pv {
   int cid2;
 };
 
-int epics_read_packet(char* dest, const char* src, int len);
+int epics_read_packet(char* dest, const char* src, int len,
+                      struct epics_pv_filter *filter);
 
 #endif  // SRC_EPICS_H_
