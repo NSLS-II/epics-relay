@@ -105,10 +105,11 @@ void listen_start(collector_params *params) {
   FD_ZERO(&socks);
 
   // Allocate data buffer
-  char data[2048];
+  char data_src[2048];
+  char data_dst[2048];
 
   // Set header struct
-  struct proto_udp_header *header = (struct proto_udp_header*)data;
+  struct proto_udp_header *header = (struct proto_udp_header*)data_dst;
   memset(header, 0, sizeof(struct proto_udp_header));
   header->version = PROTO_VERSION;
 
@@ -131,8 +132,7 @@ void listen_start(collector_params *params) {
     for (int i = 0; i < params->fd_listen_max; i++) {
       if (FD_ISSET(params->fd_listen[i], &socks)) {
         int len = recvfrom(params->fd_listen[i],
-                           (data + sizeof(struct proto_udp_header)),
-                           sizeof(data) - sizeof(struct proto_udp_header) - 1,
+                           data_src, sizeof(data_src),
                            0, (struct sockaddr *)&si, &slen);
 
         DEBUG_PRINT("Recieve %d: %s:%d %d bytes\n", i,
@@ -145,7 +145,6 @@ void listen_start(collector_params *params) {
           }
 
           // Fill in the header with packet data
-          header->payload_len = len;
           header->src_ip = si.sin_addr.s_addr;
           header->src_port = si.sin_port;
           header->dst_port = htons(params->listen_ports[i]);
@@ -153,11 +152,21 @@ void listen_start(collector_params *params) {
 
           // Now read EPICS data
 
-          epics_read_packet(data + sizeof(struct proto_udp_header), len);
+          int _len = epics_read_packet(data_dst +
+                                         sizeof(struct proto_udp_header),
+                                       data_src, len);
+          DEBUG_PRINT("_len = %d\n", _len);
+          if (!_len) {
+            // We have no valid packet
+            DEBUG_COMMENT("No valid packet....\n");
+            continue;
+          }
+
+          header->payload_len = _len;
 
           // Now transmit header
           int n = sendto(params->fd,
-                        data, sizeof(struct proto_udp_header) + len,
+                        data_dst, _len + sizeof(struct proto_udp_header),
                         0, (struct sockaddr *)(&emitter_addr),
                         sizeof(emitter_addr));
 

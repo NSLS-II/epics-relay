@@ -44,6 +44,10 @@
 #include "ethernet.h"
 #include "epics.h"
 
+int round_up(int num, int factor) {
+    return num + factor - 1 - (num + factor - 1) % factor;
+}
+
 int epics_process_version(const char *packet) {
   struct ca_proto_version *version =
     (struct ca_proto_version *)packet;
@@ -68,49 +72,86 @@ int epics_process_beacon(const char *packet) {
   return sizeof(struct ca_proto_rsrv_is_up);
 }
 
-int epics_process_search(const char *packet) {
-  int pos = 0;
+int epics_process_search(char *dst, const char *src, int *dst_len) {
   struct ca_proto_search *req =
-    (struct ca_proto_search *)packet;
-  pos += sizeof(struct ca_proto_search);
+    (struct ca_proto_search *)src;
+  int pos = sizeof(struct ca_proto_search);
 
   DEBUG_PRINT("Reply       : %d\n", htons(req->reply));
   DEBUG_PRINT("Version     : %d\n", htons(req->version));
   DEBUG_PRINT("Search ID 1 : %d\n", htonl(req->cid1));
   DEBUG_PRINT("Search ID 2 : %d\n", htonl(req->cid2));
-  DEBUG_PRINT("PV Name     : %s\n", packet + pos);
 
-  pos += htons(req->payload_size);
+  int len = htons(req->payload_size);
+
+  char pv[128];
+  if (len >= (int)(sizeof(pv))) {
+    ERROR_PRINT("Payload size of %d is too large (max = %d)\n",
+                len, sizeof(pv));
+
+    // Exit without processing request
+    *dst_len = 0;
+    pos += len;
+    return pos;
+  }
+
+  // Copy pv to string
+  strncpy(pv, src + pos, len);
+  DEBUG_PRINT("PV Name     : %s\n", pv);
+
+  pos += len;
+
+  int match = 0;
+  if (match) {
+    DEBUG_COMMENT("Match exclude PV\n");
+    *dst_len = 0;
+  } else {
+    *dst_len = pos;
+    memcpy(dst, src, pos);
+  }
+  DEBUG_PRINT("pos = %d dst_len = %d\n", pos, *dst_len);
   return pos;
 }
 
-int epics_read_packet(const char* packet, int packet_len) {
+int epics_read_packet(char* dest, const char* src, int len) {
   int pos = 0;
+  int pos_dest = 0;
 
-  DEBUG_PRINT("Start. Packet len : %d\n", packet_len);
+  DEBUG_PRINT("Start. Packet len : %d\n", len);
 
-  while (pos < packet_len) {
+  while (pos < len) {
     // Process messages
     struct ca_proto_msg *msg = (struct ca_proto_msg *)
-                               (packet + pos);
+                               (src + pos);
 
     DEBUG_PRINT("Command : %d\n", htons(msg->command));
     DEBUG_PRINT("Payload_size : %d\n", htons(msg->payload_size));
 
+    int _pos;
     if (msg->command == CA_PROTO_VERSION) {
       DEBUG_COMMENT("Valid CA_PROTO_VERSION\n");
-      pos += epics_process_version(packet + pos);
+      _pos = epics_process_version(src + pos);
+      memcpy(dest + pos_dest, src + pos, _pos);
+      pos += _pos;
+      pos_dest += _pos;
     } else if (htons(msg->command) == CA_PROTO_SEARCH) {
       DEBUG_COMMENT("Valid CA_SEARCH_REQUEST\n");
-      pos += epics_process_search(packet + pos);
+      int _pos_dest = 0;
+      _pos = epics_process_search(dest + pos_dest, src + pos, &_pos_dest);
+      pos += _pos;
+      pos_dest += _pos_dest;
     } else if (htons(msg->command) == CA_PROTO_RSRV_IS_UP) {
       DEBUG_COMMENT("Valid CA_PROTO_RSRV_IS_UP\n");
-      pos += epics_process_beacon(packet + pos);
+      _pos = epics_process_beacon(src + pos);
+      memcpy(dest + pos_dest, src + pos, _pos);
+      pos += _pos;
+      pos_dest += _pos;
     } else {
       DEBUG_PRINT("Unknown command %d\n", htons(msg->command));
       break;
     }
   }
 
-  return 0;
+  DEBUG_PRINT("pos_dest = %d\n", pos_dest);
+  return pos_dest;
 }

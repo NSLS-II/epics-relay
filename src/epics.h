@@ -83,8 +83,10 @@ struct ca_proto_rsrv_is_up {
 struct epics_pv {
   char name[EPICS_PV_MAX_LEN];
   int len;
+  int cid1;
+  int cid2;
 };
 
-int epics_read_packet(const char* packet, int packet_len);
+int epics_read_packet(char* dest, const char* src, int len);
 
 #endif  // SRC_EPICS_H_
