@@ -121,7 +121,7 @@ stages:
           --prefix=epics-relay-$(gitversion)/ \
           --output=${SOURCES}/epics-relay-v$(gitversion).tar.gz \
           HEAD
-        rpmbuild -bb --define "_topdir ${RPMDIR}" --define "version $(gitversion)" epics-relay.spec
+        rpmbuild -ba --define "_topdir ${RPMDIR}" --define "version $(gitversion)" epics-relay.spec
       displayName: 'Build rpm Package'
       condition: and(succeeded(), eq(variables.pkg_type, 'redhat'))
 
