@@ -44,8 +44,9 @@ VERBOSE=1 make
 
 %files
 %license LICENSE
-%{_bindir}/arpwatch
-%{_unitdir}/arpwatch.service
+%{_bindir}/collector
+%{_bindir}/emitter
+#%{_unitdir}/arpwatch.service
 
 #%changelog
 #* Thu Jul 22 2021 Stuart Campbell <scampbell@bnl.gov> 0.1.2-2
