@@ -121,7 +121,8 @@ target_link_libraries(emitter PRIVATE pcre2-8 pcap net pthread)
 
 # Install
 
-# install(TARGETS arpwatch RUNTIME DESTINATION bin/)
+install(TARGETS collector RUNTIME DESTINATION bin/)
+install(TARGETS emitter RUNTIME DESTINATION bin/)
 # if (SYSTEMD_FOUND)
 #   configure_file(systemd/arpwatch.service.in ${CMAKE_CURRENT_BINARY_DIR}/arpwatch.service @ONLY)
 #   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/arpwatch.service
