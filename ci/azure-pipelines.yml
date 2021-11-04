@@ -1,0 +1,168 @@
+trigger:
+  branches:
+    include:
+    - main
+    - releases/*
+  tags:
+    include:
+    - v*
+
+variables:
+  System.Debug: true
+
+stages:
+- stage: Build
+
+  jobs:
+  - job: Review
+    steps:
+    - task: WhiteSource@21
+      inputs:
+        cwd: '$(System.DefaultWorkingDirectory)'
+      displayName: 'WhiteSource'
+
+  - job: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    strategy:
+      matrix:
+        centos8:
+          containerImage: stuwilkins/epics-relay-build-centos8:latest
+          pkg_type: redhat
+          rpmrelease: centos8
+          cmake: cmake
+
+    container:
+      image: $[ variables['containerImage'] ]
+
+    steps:
+    - script: |
+        set -e
+        rm -rf build
+        mkdir build
+        cd build
+        $(cmake) .. -DDEBUG=NO
+        VERBOSE=1 make
+      displayName: Build
+      condition: ne(variables.arch, 'armhf')
+
+    - script: |
+        set -e
+        rm -rf build
+        mkdir build
+        cd build
+        $(cmake) .. -DDEBUG=YES
+        VERBOSE=1 make
+      displayName: Build (DEBUG Version)
+      condition: ne(variables.arch, 'armhf')
+
+  - job: Package
+    dependsOn: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    strategy:
+      matrix:
+        centos8:
+          containerImage: stuwilkins/epics-relay-build-centos8:latest
+          pkg_type: redhat
+          rpmrelease: centos8
+          cmake: cmake
+
+    container:
+      image: $[ variables['containerImage'] ]
+
+    steps:
+    - script: |
+        GITDESC=$(git describe --abbrev=0)
+        VERSION=$(git describe --abbrev=0 | sed -En 's/v([0-9]+\.)([0-9]+\.)?([0-9]+)/\1\2\3/p')
+        echo "##vso[task.setvariable variable=gitdesc]$GITDESC"
+        echo "##vso[task.setvariable variable=gitversion]$VERSION"
+        echo "##[debug] GITDESC = $GITDESC"
+        echo "##[debug] VERSION = $VERSION"
+      displayName: Set Git Describe to Variable
+
+    - script: |
+        set -e
+        dpkg-buildpackage -a $(arch) -b
+        old_debfile=$(ls -1 ../epics-relay_*.deb | tail -1)
+        new_debfile=$(echo ${old_debfile} | sed "s/\.deb/-$(debrelease).deb/")
+        mv "${old_debfile}" "${new_debfile}"
+        cp "${new_debfile}" .
+        echo "##vso[task.setvariable variable=releasefile]${new_debfile}"
+        echo "##[debug] old_debfile = ${old_debfile}"
+        echo "##[debug] new_debfile = ${new_debfile}"
+        echo "##[debug] gitdesc = $(gitdesc)"
+      displayName: 'Build Debian Package'
+      condition: and(succeeded(), eq(variables.pkg_type, 'debian'))
+
+    - task: CopyFiles@2
+      inputs:
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+        contents: 'epics-relay_*.deb'
+        flattenFolders: true
+      condition: and(succeeded(), eq(variables.pkg_type, 'debian'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: packages
+      displayName: Publish Debian Packages
+      condition: and(succeeded(), eq(variables.pkg_type, 'debian'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
+    - script: |
+        set -e
+        RPMDIR="`pwd`/rpmbuild"
+        echo $RPMDIR
+        SOURCES=${RPMDIR}/SOURCES
+        mkdir -p ${SOURCES}
+        git archive --format=tar \
+          --prefix=epics-relay-$(gitversion)/ \
+          --output=${SOURCES}/epics-relay-v$(gitversion).tar.gz \
+          HEAD
+        rpmbuild -bb --define "_topdir ${RPMDIR}" --define "version $(gitversion)" epics-relay.spec
+      displayName: 'Build rpm Package'
+      condition: and(succeeded(), eq(variables.pkg_type, 'redhat'))
+
+    - task: CopyFiles@2
+      inputs:
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+        contents: rpmbuild/RPMS/x86_64/*
+        flattenFolders: true
+      condition: and(succeeded(), eq(variables.pkg_type, 'redhat'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: packages
+      displayName: Publish RedHat Packages
+      condition: and(succeeded(), eq(variables.pkg_type, 'redhat'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
+  - job: Publish
+    dependsOn: Package
+    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    steps:
+      - script: |
+          GITDESC=$(git describe --abbrev=0)
+          echo "##vso[task.setvariable variable=gitdesc]$GITDESC"
+          echo "##[debug] GITDESC = $GITDESC"
+        displayName: Set Git Describe to Variable
+      - task: DownloadBuildArtifacts@0
+        inputs:
+          buildType: 'current'
+          downloadType: 'single'
+          artifactName: 'packages'
+          downloadPath: '$(System.ArtifactsDirectory)'
+        displayName: Download Packages
+      - task: GithubRelease@0
+        inputs:
+          gitHubConnection: github.com_stuwilkins
+          repositoryName: NSLS-II/epics-relay
+          assets: '$(System.ArtifactsDirectory)/**/*'
+          action: edit
+          target: '$(Build.SourceVersion)'
+          tag: $(gitdesc)
+          addChangeLog: false
+          assetUploadMode: replace
+        displayName: 'Attach package to release'
