@@ -132,6 +132,13 @@ stages:
         flattenFolders: true
       condition: and(succeeded(), eq(variables.pkg_type, 'redhat'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
 
+    - task: CopyFiles@2
+      inputs:
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+        contents: rpmbuild/SRPMS/*
+        flattenFolders: true
+      condition: and(succeeded(), eq(variables.pkg_type, 'redhat'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
