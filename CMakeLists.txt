@@ -111,7 +111,7 @@ add_executable(emitter   src/emitter.c
                          src/epics.c
                          version.c)
 
-add_executable(epics-relay.conf epics-relay.conf)
+add_executable(${PROJECT_NAME} ${SRC_LIST} epics-relay.conf)
 
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
