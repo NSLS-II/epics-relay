@@ -16,10 +16,11 @@ Source0:        https://github.com/NSLS-II/epics-relay/archive/%v{version}/epics
 
 BuildRequires:  cmake
 BuildRequires:  libnet-devel
+BuildRequires:  pcre2-devel
 BuildRequires:  systemd-devel
 BuildRequires:  systemd-rpm-macros
 Requires:       libnet
-Requires:       pcre2-devel
+Requires:       pcre2
 
 %description
 epics-relay UDP Relay and tunnel
