@@ -34,14 +34,17 @@ VERBOSE=1 make
 %install
 %make_install
 
-#%post
-#%systemd_post arpwatch.service
+%post
+%systemd_post epics_udp_emitter.service
+%systemd_post epics_udp_collector.service
 
-#%preun
-#%systemd_preun arpwatch.service
+%preun
+%systemd_preun epics_udp_emitter.service
+%systemd_preun epics_udp_collector.service
 
-#%postun
-#%systemd_postun_with_restart arpwatch.service
+%postun
+%systemd_postun_with_restart epics_udp_emitter.service
+%systemd_postun_with_restart epics_udp_collector.service
 
 %files
 %license LICENSE
