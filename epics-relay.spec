@@ -45,10 +45,10 @@ VERBOSE=1 make
 
 %files
 %license LICENSE
-%{_bindir}/collector
-%{_bindir}/emitter
-%{_unitdir}/emitter.service
-%{_unitdir}/collector.service
+%{_bindir}/epics_udp_collector
+%{_bindir}/epics_udp_emitter
+%{_unitdir}/epics_udp_emitter.service
+%{_unitdir}/epics_udp_collector.service
 %{_sysconfdir}/epics-relay.conf
 
 #%changelog

@@ -101,28 +101,28 @@ add_custom_command(
 )
 
 # add the executable
-add_executable(collector src/collector.c
-                         src/ethernet.c
-                         src/epics.c
-                         version.c)
+add_executable(epics_udp_collector src/collector.c
+                                   src/ethernet.c
+                                   src/epics.c
+                                   version.c)
 
-add_executable(emitter   src/emitter.c
-                         src/ethernet.c
-                         src/epics.c
-                         version.c)
+add_executable(epics_udp_emitter   src/emitter.c
+                                   src/ethernet.c
+                                   src/epics.c
+                                   version.c)
 
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
 find_library(NET_LIBRARY net REQUIRED)
 find_library(NET_LIBRARY pcre2-8 REQUIRED)
 
-target_link_libraries(collector PRIVATE pcre2-8 pcap net pthread)
-target_link_libraries(emitter PRIVATE pcre2-8 pcap net pthread)
+target_link_libraries(epics_udp_collector PRIVATE pcre2-8 pcap net pthread)
+target_link_libraries(epics_udp_emitter PRIVATE pcre2-8 pcap net pthread)
 
 # Install
 
-install(TARGETS collector RUNTIME DESTINATION bin/ COMPONENT binaries)
-install(TARGETS emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
+install(TARGETS epics_udp_collector RUNTIME DESTINATION bin/ COMPONENT binaries)
+install(TARGETS epics_udp_emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
 
 configure_file(systemd/epics-relay.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
@@ -130,13 +130,13 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
         COMPONENT config)
 
 if (SYSTEMD_FOUND)
-  configure_file(systemd/emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/emitter.service @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/emitter.service
+  configure_file(systemd/epics_udp_emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter.service
     DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
     COMPONENT data
   )
-  configure_file(systemd/collector.service.in ${CMAKE_CURRENT_BINARY_DIR}/collector.service @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/collector.service
+  configure_file(systemd/epics_udp_collector.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector.service
     DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
     COMPONENT data
   )
