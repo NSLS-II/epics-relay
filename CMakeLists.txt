@@ -125,7 +125,9 @@ install(TARGETS collector RUNTIME DESTINATION bin/ COMPONENT binaries)
 install(TARGETS emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
 
 configure_file(systemd/epics-relay.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf DESTINATION etc/ COMPONENT config)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
+        DESTINATION etc/
+        COMPONENT config)
 
 if (SYSTEMD_FOUND)
   configure_file(systemd/emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/emitter.service @ONLY)
