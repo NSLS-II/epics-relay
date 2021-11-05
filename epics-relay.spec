@@ -17,8 +17,9 @@ Source0:        https://github.com/NSLS-II/epics-relay/archive/%v{version}/epics
 BuildRequires:  cmake
 BuildRequires:  libnet-devel
 BuildRequires:  systemd-devel
-%{?el8:BuildRequires:  systemd-rpm-macros}
+BuildRequires:  systemd-rpm-macros
 Requires:       libnet
+Requires:       pcre2-devel
 
 %description
 epics-relay UDP Relay and tunnel
@@ -46,7 +47,8 @@ VERBOSE=1 make
 %license LICENSE
 %{_bindir}/collector
 %{_bindir}/emitter
-#%{_unitdir}/arpwatch.service
+%{_unitdir}/emitter.service
+%{_unitdir}/collector.service
 
 #%changelog
 #* Thu Jul 22 2021 Stuart Campbell <scampbell@bnl.gov> 0.1.2-2

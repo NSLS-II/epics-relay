@@ -1,0 +1,14 @@
+[Unit]
+Description=arpwatch ARP packet monitor
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=20
+User=root
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/arpwatch
+
+[Install]
+WantedBy=multi-user.target
