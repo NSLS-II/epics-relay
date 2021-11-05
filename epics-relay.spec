@@ -49,6 +49,7 @@ VERBOSE=1 make
 %{_bindir}/emitter
 %{_unitdir}/emitter.service
 %{_unitdir}/collector.service
+%{_sysconfdir}/epics-relay.conf
 
 #%changelog
 #* Thu Jul 22 2021 Stuart Campbell <scampbell@bnl.gov> 0.1.2-2
