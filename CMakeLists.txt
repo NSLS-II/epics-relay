@@ -54,6 +54,8 @@ option(DEBUG                "Show debug comments" OFF)
 option(SYSTEMD              "Compile as systemd daemon" ON)
 option(NO_IN_SOURCE_BUILDS  "Prevent in source builds" ON)
 
+include(GNUInstallDirs)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -121,12 +123,12 @@ target_link_libraries(epics_udp_emitter PRIVATE pcre2-8 pcap net pthread)
 
 # Install
 
-install(TARGETS epics_udp_collector RUNTIME DESTINATION bin/ COMPONENT binaries)
-install(TARGETS epics_udp_emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
+install(TARGETS epics_udp_collector RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT binaries)
+install(TARGETS epics_udp_emitter RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT binaries)
 
 configure_file(systemd/epics-relay.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
-        DESTINATION /etc/
+        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
         COMPONENT config)
 
 if (SYSTEMD_FOUND)
