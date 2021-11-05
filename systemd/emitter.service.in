@@ -1,5 +1,5 @@
 [Unit]
-Description=arpwatch ARP packet monitor
+Description=EPICS Relay UDP Emitter
 After=network.target
 StartLimitIntervalSec=0
 
@@ -8,7 +8,10 @@ Type=simple
 Restart=always
 RestartSec=20
 User=root
-ExecStart=@CMAKE_INSTALL_PREFIX@/bin/arpwatch
+EnvironmentFile=@CMAKE_INSTALL_PREFIX@/etc/epics-relay.conf
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/emitter \
+            ${EPICS_RELAY_EMITTER_OPTIONS} \
+            ${EPICS_RELAY_EMITTER_IFACE}
 
 [Install]
 WantedBy=multi-user.target

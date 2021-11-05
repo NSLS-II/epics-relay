@@ -111,6 +111,8 @@ add_executable(emitter   src/emitter.c
                          src/epics.c
                          version.c)
 
+add_executable(epics-relay.conf epics-relay.conf)
+
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
 find_library(NET_LIBRARY net REQUIRED)
@@ -121,12 +123,18 @@ target_link_libraries(emitter PRIVATE pcre2-8 pcap net pthread)
 
 # Install
 
-install(TARGETS collector RUNTIME DESTINATION bin/)
-install(TARGETS emitter RUNTIME DESTINATION bin/)
-# if (SYSTEMD_FOUND)
-#   configure_file(systemd/arpwatch.service.in ${CMAKE_CURRENT_BINARY_DIR}/arpwatch.service @ONLY)
-#   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/arpwatch.service
-#     DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
-#     COMPONENT data
-#   )
-# endif (SYSTEMD_FOUND)
+install(TARGETS collector RUNTIME DESTINATION bin/ COMPONENT binaries)
+install(TARGETS emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
+install(TARGETS epics-relay.conf RUNTIME DESTINATION etc/ COMPONENT config)
+if (SYSTEMD_FOUND)
+  configure_file(systemd/emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/emitter.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/emitter.service
+    DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
+    COMPONENT data
+  )
+  configure_file(systemd/collector.service.in ${CMAKE_CURRENT_BINARY_DIR}/collector.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/collector.service
+    DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
+    COMPONENT data
+  )
+endif (SYSTEMD_FOUND)
