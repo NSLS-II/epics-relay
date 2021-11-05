@@ -128,7 +128,7 @@ install(TARGETS epics_udp_emitter RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} CO
 
 configure_file(systemd/epics-relay.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
-        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
+        DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}
         COMPONENT config)
 
 if (SYSTEMD_FOUND)
