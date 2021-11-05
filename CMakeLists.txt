@@ -111,7 +111,7 @@ add_executable(emitter   src/emitter.c
                          src/epics.c
                          version.c)
 
-add_executable(${PROJECT_NAME} ${SRC_LIST} epics-relay.conf)
+#add_executable(${PROJECT_NAME} ${SRC_LIST} epics-relay.conf)
 
 add_custom_target(version_info DEPENDS ${CMAKE_BINARY_DIR}/version.c)
 
@@ -125,7 +125,7 @@ target_link_libraries(emitter PRIVATE pcre2-8 pcap net pthread)
 
 install(TARGETS collector RUNTIME DESTINATION bin/ COMPONENT binaries)
 install(TARGETS emitter RUNTIME DESTINATION bin/ COMPONENT binaries)
-install(TARGETS epics-relay.conf RUNTIME DESTINATION etc/ COMPONENT config)
+install(FILES systemd/epics-relay.conf RUNTIME DESTINATION etc/ COMPONENT config)
 if (SYSTEMD_FOUND)
   configure_file(systemd/emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/emitter.service @ONLY)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/emitter.service
