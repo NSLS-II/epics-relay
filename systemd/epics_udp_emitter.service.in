@@ -8,10 +8,7 @@ Type=simple
 Restart=always
 RestartSec=20
 User=root
-EnvironmentFile=@CMAKE_INSTALL_FULL_SYSCONFDIR@/epics-relay.conf
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_emitter \
-            ${EPICS_RELAY_EMITTER_OPTIONS} \
-            ${EPICS_RELAY_EMITTER_IFACE}
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_emitter
 
 [Install]
 WantedBy=multi-user.target

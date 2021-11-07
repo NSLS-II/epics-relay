@@ -8,11 +8,7 @@ Type=simple
 Restart=always
 RestartSec=20
 User=root
-EnvironmentFile=@CMAKE_INSTALL_FULL_SYSCONFDIR@/epics-relay.conf
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_collector \
-            ${EPICS_RELAY_COLLECTOR_OPTIONS} \
-            ${EPICS_RELAY_COLLECTOR_IFACE} \
-            ${EPICS_RELAY_COLLECTOR_IP}
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_collector
 
 [Install]
 WantedBy=multi-user.target
