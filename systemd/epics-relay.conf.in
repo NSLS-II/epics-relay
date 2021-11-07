@@ -1,5 +1,14 @@
-EPICS_RELAY_COLLECTOR_OPTIONS=
-EPICS_RELAY_COLLECTOR_IFACE=eno192
-EPICS_RELAY_COLLECTOR_IP=192.168.0.1
-EPICS_RELAY_EMITTER_OPTIONS=
-EPICS_RELAY_EMITTER_IFACE=eno192
+collector = {
+  epics_interface = "enp4s0"
+  emitter = "xf31id1-ws2.nsls2.bnl.local"
+  regex = {
+    rules = (
+      "TEST1",
+      "TEST2"
+    )
+  }
+}
+
+emitter = {
+  epics_interface = "ens192"
+}

@@ -50,4 +50,13 @@ struct libnet_params {
   struct in_addr bcast;
 };
 
+typedef struct {
+  int fd;
+  struct ifdatav4 iface;
+  struct ifdatav4 iface_epics;
+  char iface_epics_name[128];
+  struct libnet_params libnet;
+} emitter_params;
+
+
 #endif  // SRC_EMITTER_H_

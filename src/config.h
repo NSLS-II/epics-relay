@@ -1,4 +1,4 @@
-
+//
 //  epics-relay
 //
 //  Stuart B. Wilkins, Brookhaven National Laboratory
@@ -35,24 +35,14 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 //  THE POSSIBILITY OF SUCH DAMAGE.
 //
-#ifndef SRC_COLLECTOR_H_
-#define SRC_COLLECTOR_H_
 
-#include "ethernet.h"
-#include "epics.h"
+#ifndef SRC_CONFIG_H_
+#define SRC_CONFIG_H_
 
-#define MAX_FD        50
+#include "collector.h"
+#include "emitter.h"
 
-typedef struct {
-  int fd;
-  int fd_listen[MAX_FD];
-  int listen_ports[MAX_FD];
-  int fd_listen_max;
-  struct ifdatav4 iface;
-  struct ifdatav4 iface_listen;
-  struct in_addr emitter;
-  struct epics_pv_filter filter;
-} collector_params;
+int config_read_collector(const char* filename, collector_params *params);
+int config_read_emitter(const char* filename, emitter_params *params);
 
-
-#endif  // SRC_COLLECTOR_H_
+#endif  // SRC_CONFIG_H_

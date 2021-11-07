@@ -60,24 +60,12 @@ int debug_flag = 0;
 #include "proto.h"
 #include "epics.h"
 #include "collector.h"
-
-#define MAX_FD        50
-
-typedef struct {
-  int fd;
-  int fd_listen[MAX_FD];
-  int listen_ports[MAX_FD];
-  int fd_listen_max;
-  struct ifdatav4 iface;
-  struct ifdatav4 iface_listen;
-  struct in_addr emitter;
-  struct epics_pv_filter filter;
-} collector_params;
+#include "defs.h"
+#include "config.h"
 
 static struct option long_options[] = {
   {"debug", no_argument, &debug_flag, -1},
-  {"iface", required_argument, 0, 'i'},
-  {"regex", required_argument, 0, 'r'},
+  {"config", required_argument, 0, 'c'},
   {0, 0, 0, 0}
 };
 
@@ -213,15 +201,12 @@ int start_collector(collector_params *params) {
 
 int main(int argc, char *argv[]) {
   collector_params params;
-  char *iface = NULL;
-  char *iface_listen = NULL;
-  char *emitter_ip = NULL;
-  char *regex_file = NULL;
+  char *config_file = DEFAULT_CONFIG_FILE;
 
   // Parse command line options
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "di:r:",
+    int c = getopt_long(argc, argv, "dc:",
                         long_options, &option_index);
     if (c == -1) {
       break;
@@ -230,14 +215,11 @@ int main(int argc, char *argv[]) {
     switch (c) {
     case 0:
       break;
-    case 'i':
-      iface = optarg;
-      break;
     case 'd':
       debug_flag = -1;
       break;
-    case 'r':
-      regex_file = optarg;
+    case 'c':
+      config_file = optarg;
       break;
     case '?':
     default:
@@ -246,43 +228,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  int extra = argc - optind;
-  DEBUG_PRINT("Extra opts : %d\n", extra);
-
-  if (extra != 2) {
-    ERROR_COMMENT("Incorrect options on command line\n");
+  if (config_read_collector(config_file, &params)) {
+    ERROR_COMMENT("Unable to process config file\n");
     exit(-1);
-  }
-
-  iface_listen = argv[optind++];
-  emitter_ip = argv[optind++];
-
-  if (get_interface(iface, &(params.iface))) {
-    ERROR_COMMENT("Unable to get iface data\n");
-    return -1;
-  }
-  if (get_interface(iface_listen, &(params.iface_listen))) {
-    ERROR_COMMENT("Unable to get iface data\n");
-    return -1;
-  }
-
-  if (inet_pton(AF_INET, emitter_ip, &params.emitter) != 1) {
-    ERROR_COMMENT("Unable to convert emitter address\n");
-    return -1;
-  }
-
-  params.filter.sense = 0;
-  params.filter.logic = 0;
-
-  if (regex_file == NULL) {
-    params.filter.next = NULL;
-  } else {
-    params.filter.next = epics_filter_load(regex_file);
-    if (params.filter.next == NULL) {
-      // Error loading file
-      ERROR_PRINT("Error with regex file %s\n", regex_file);
-      exit(-1);
-    }
   }
 
   start_collector(&params);

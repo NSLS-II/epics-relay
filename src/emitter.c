@@ -47,12 +47,14 @@
 #include "ethernet.h"
 #include "emitter.h"
 #include "proto.h"
+#include "config.h"
+#include "defs.h"
 
 int debug_flag = 0;
 
 static struct option long_options[] = {
   {"debug", no_argument, &debug_flag, -1},
-  {"iface", required_argument, 0, 'i'},
+  {"config", required_argument, 0, 'c'},
   {0, 0, 0, 0}
 };
 
@@ -175,15 +177,13 @@ int send_udp_packet(struct libnet_params *params,
 }
 
 int main(int argc, char *argv[]) {
-  int fd;
-  struct ifdatav4 dif_epics, dif;
-  char *iface = NULL;
-  char *iface_emit = NULL;
+  char *config_file = DEFAULT_CONFIG_FILE;
+  emitter_params params;
 
   // Parse command line options
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "di:",
+    int c = getopt_long(argc, argv, "dc:",
                         long_options, &option_index);
     if (c == -1) {
       break;
@@ -192,8 +192,8 @@ int main(int argc, char *argv[]) {
     switch (c) {
     case 0:
       break;
-    case 'i':
-      iface = optarg;
+    case 'c':
+      config_file = optarg;
       break;
     case 'd':
       debug_flag = -1;
@@ -205,28 +205,23 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  int extra = argc - optind;
-  DEBUG_PRINT("Extra opts : %d\n", extra);
-
-  if (extra != 1) {
-    ERROR_COMMENT("Incorrect options on command line\n");
+  if (config_read_emitter(config_file, &params)) {
+    ERROR_COMMENT("Unable to read config file\n");
     exit(-1);
   }
 
-  iface_emit = argv[optind++];
-
-  get_interface(iface_emit, &dif_epics);
-  get_interface(iface, &dif);
-
-  if (bind_socket(dif.address, PROTO_UDP_PORT, 0, &fd)) {
+  if (bind_socket(params.iface.address, PROTO_UDP_PORT, 0, &params.fd)) {
     ERROR_COMMENT("Unable to bind to socket\n");
     exit(-1);
   }
 
   // Setup libnet
-  struct libnet_params lnet_params;
-  setup_libnet(&lnet_params, iface_emit);
-  lnet_params.bcast = dif_epics.broadcast;
+  if (setup_libnet(&params.libnet, params.iface_epics_name)) {
+    ERROR_COMMENT("Unable to setup packet emitter\n");
+    exit(-1);
+  }
+
+  params.libnet.bcast = params.iface_epics.broadcast;
 
   struct sockaddr_in client_addr;
   unsigned int client_addr_len = sizeof(client_addr);
@@ -235,7 +230,7 @@ int main(int argc, char *argv[]) {
   for (;;) {
     // Receive client's message:
     ssize_t rc;
-    if ((rc = recvfrom(fd, buffer, sizeof(buffer), 0,
+    if ((rc = recvfrom(params.fd, buffer, sizeof(buffer), 0,
         (struct sockaddr*)&client_addr, &client_addr_len)) < 0) {
         ERROR_COMMENT("Could not receive\n");
     } else {
@@ -244,15 +239,15 @@ int main(int argc, char *argv[]) {
         DEBUG_PRINT("Received message from IP: %s and port: %i\n", name,
                     ntohs(client_addr.sin_port));
       }
-      if (check_udp_packet(&dif_epics, buffer, rc)) {
+      if (check_udp_packet(&params.iface_epics, buffer, rc)) {
         ERROR_COMMENT("Packet check failed ... skipping ...\n");
         continue;
       }
 
-      send_udp_packet(&lnet_params, buffer, rc);
+      send_udp_packet(&params.libnet, buffer, rc);
     }
   }
 
-  close_libnet(&lnet_params);
-  close(fd);
+  close_libnet(&params.libnet);
+  close(params.fd);
 }
