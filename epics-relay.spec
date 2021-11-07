@@ -57,6 +57,6 @@ VERBOSE=1 make
 %{_unitdir}/epics_udp_collector.service
 %{_sysconfdir}/epics-relay.conf
 
-#%changelog
-#* Thu Jul 22 2021 Stuart Campbell <scampbell@bnl.gov> 0.1.2-2
-#- Added systemd support
+%changelog
+* Sun Nov 07 2021 Stuart B. Wilkins <swilkins@bnl.gov> - %{version}-0.el8
+- Added deps
