@@ -48,6 +48,7 @@ struct libnet_params {
   libnet_ptag_t ipv4_t;
   libnet_ptag_t eth_t;
   struct in_addr bcast;
+  char errbuf[LIBNET_ERRBUF_SIZE];
 };
 
 typedef struct {

@@ -86,11 +86,13 @@ void close_libnet(struct libnet_params *params) {
 }
 
 int setup_libnet(struct libnet_params *params, const char *iface) {
-  char errbuf[LIBNET_ERRBUF_SIZE];
-
-  params->lnet = libnet_init(LIBNET_LINK, iface, errbuf);
+#ifdef LIBNET_MODE_LINK
+  params->lnet = libnet_init(LIBNET_LINK, iface, params->errbuf);
+#else
+  params->lnet = libnet_init(LIBNET_RAW4, iface, params->errbuf);
+#endif
   if (params->lnet == NULL) {
-    ERROR_PRINT("Error with libnet_init(): %s", errbuf);
+    ERROR_PRINT("Error with libnet_init(): %s", params->errbuf);
     return -1;
   }
 
@@ -153,6 +155,7 @@ int send_udp_packet(struct libnet_params *params,
     return -1;
   }
 
+#ifdef LIBNET_MODE_LINK
   params->eth_t = libnet_build_ethernet(
     hw_bcast,                                     // Dest hw address
     (uint8_t*)params->hw_addr,                    // Interface HW Address
@@ -165,6 +168,7 @@ int send_udp_packet(struct libnet_params *params,
     ERROR_COMMENT("Unable to create ETH packet\n");
     return -1;
   }
+#endif
 
   // Write the packet and send on the wire
 
