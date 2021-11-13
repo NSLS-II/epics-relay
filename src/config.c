@@ -44,6 +44,7 @@
 #include "collector.h"
 #include "emitter.h"
 #include "debug.h"
+#include "proto.h"
 #include "defs.h"
 
 int config_open_file(const char* filename, config_t *cfg) {
@@ -111,7 +112,7 @@ _error:
 
 int config_read_collector(const char* filename, collector_params *params) {
   config_t cfg;
-  config_setting_t *root, *collector, *regex;
+  config_setting_t *root, *collector, *regex, *emitter;
   const char *str;
 
   config_init(&cfg);
@@ -150,9 +151,33 @@ int config_read_collector(const char* filename, collector_params *params) {
   }
 
   // Emitter hostname
-  if (!config_setting_lookup_string(collector, "emitter", &str)) {
-    ERROR_COMMENT("Unable to find emitter hostname\n");
-  } else {
+  if (!(emitter = config_setting_get_member(collector, "emitter"))) {
+    ERROR_COMMENT("Unable to find emitter list\n");
+    goto _error;
+  }
+
+  if (!config_setting_is_list(emitter)) {
+    ERROR_COMMENT("Emitter must be a list\n");
+    goto _error;
+  }
+
+  // Allocate memory
+  params->num_fd = config_setting_length(emitter);
+  params->fd = (int *)malloc(sizeof(int) * params->num_fd);
+  if (!params->fd) {
+    ERROR_COMMENT("Unable to allocate memory\n");
+    goto _error;
+  }
+
+  params->emitter_addr = malloc(sizeof(struct sockaddr_in) * params->num_fd);
+  if (!params->emitter_addr) {
+    ERROR_COMMENT("Unable to allocate memory\n");
+    goto _error;
+  }
+
+  for (int i = 0; i < params->num_fd; i++) {
+    const char* str = config_setting_get_string_elem(emitter, i);
+
     // Convert hostname to IP
     struct hostent *he = gethostbyname(str);
     if (he == NULL) {
@@ -160,8 +185,11 @@ int config_read_collector(const char* filename, collector_params *params) {
       goto _error;
     }
 
-    struct in_addr *addr = (struct in_addr*)he->h_addr;
-    params->emitter = *addr;
+    // Emitter setup
+    memset(&(params->emitter_addr[i]), 0, sizeof(struct sockaddr_in));
+    params->emitter_addr[i].sin_family = AF_INET;
+    params->emitter_addr[i].sin_port = htons(PROTO_UDP_PORT);
+    params->emitter_addr[i].sin_addr = *((struct in_addr*)he->h_addr);
   }
 
   // Get regex list

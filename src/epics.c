@@ -239,6 +239,8 @@ int epics_read_packet(char* dest, const char* src, int len,
                       struct epics_pv_filter *filter) {
   int pos = 0;
   int pos_dest = 0;
+  int search = 0;
+  int type = EPICS_TYPE_NONE;
 
   DEBUG_PRINT("Start. Packet len : %d\n", len);
 
@@ -259,13 +261,20 @@ int epics_read_packet(char* dest, const char* src, int len,
       pos_dest += _pos;
     } else if (htons(msg->command) == CA_PROTO_SEARCH) {
       DEBUG_COMMENT("Valid CA_SEARCH_REQUEST\n");
+      type |= EPICS_TYPE_SEARCH;
       int _pos_dest = 0;
       _pos = epics_process_search(dest + pos_dest, src + pos, &_pos_dest,
                                   filter);
+      if (_pos_dest) {
+        // We accepted the search request
+        DEBUG_COMMENT("SEARCH Request accepted\n");
+        search++;
+      }
       pos += _pos;
       pos_dest += _pos_dest;
     } else if (htons(msg->command) == CA_PROTO_RSRV_IS_UP) {
       DEBUG_COMMENT("Valid CA_PROTO_RSRV_IS_UP\n");
+      type |= EPICS_TYPE_BEACON;
       _pos = epics_process_beacon(src + pos);
       memcpy(dest + pos_dest, src + pos, _pos);
       pos += _pos;
@@ -276,6 +285,14 @@ int epics_read_packet(char* dest, const char* src, int len,
     }
   }
 
-  DEBUG_PRINT("pos_dest = %d\n", pos_dest);
+  if (((type & EPICS_TYPE_SEARCH) == EPICS_TYPE_SEARCH) &&
+      (search > 0)) {
+    DEBUG_COMMENT("Valid search packet\n");
+  } else {
+    DEBUG_COMMENT("Invalid search packet\n");
+    return 0;
+  }
+
+  DEBUG_PRINT("Valid, pos_dest = %d\n", pos_dest);
   return pos_dest;
 }

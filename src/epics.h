@@ -46,6 +46,10 @@
 #define CA_PROTO_SEARCH       6
 #define CA_PROTO_RSRV_IS_UP   13
 
+#define EPICS_TYPE_NONE       0x00
+#define EPICS_TYPE_SEARCH     0x01
+#define EPICS_TYPE_BEACON     0x02
+
 struct epics_pv_filter {
   int sense;        // Sense !=0 explicit include
   int logic;        // Logic !=0 and else or

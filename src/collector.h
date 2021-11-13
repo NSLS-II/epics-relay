@@ -44,13 +44,14 @@
 #define MAX_FD        50
 
 typedef struct {
-  int fd;
+  int *fd;
+  int num_fd;
+  struct sockaddr_in *emitter_addr;
   int fd_listen[MAX_FD];
   int listen_ports[MAX_FD];
   int fd_listen_max;
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
-  struct in_addr emitter;
   struct epics_pv_filter filter;
 } collector_params;
 

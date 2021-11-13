@@ -70,6 +70,15 @@ static struct option long_options[] = {
 };
 
 int setup_sockets(collector_params *params) {
+  for (int i = 0; i < params->num_fd; i++) {
+    if (bind_socket(params->iface.address,
+                    PROTO_UDP_PORT, 0,
+                    &(params->fd[i]))) {
+      ERROR_COMMENT("Unable to bind....\n");
+      return -1;
+    }
+  }
+
   for (int i = 0; i < params->fd_listen_max; i++) {
     DEBUG_PRINT("Setting up port %d\n", params->listen_ports[i]);
     if (bind_socket(params->iface_listen.broadcast,
@@ -85,13 +94,6 @@ void listen_start(collector_params *params) {
   fd_set socks;
   struct timeval timeout;
   timeout.tv_sec = 1; timeout.tv_usec = 0;
-
-  // Emitter setup
-  struct sockaddr_in emitter_addr;
-  memset(&emitter_addr, 0, sizeof(emitter_addr));
-  emitter_addr.sin_family = AF_INET;
-  emitter_addr.sin_port = htons(PROTO_UDP_PORT);
-  emitter_addr.sin_addr = params->emitter;
 
   FD_ZERO(&socks);
 
@@ -155,25 +157,29 @@ void listen_start(collector_params *params) {
 
           header->payload_len = _len;
 
-          // Now transmit header
-          int n = sendto(params->fd,
-                        data_dst, _len + sizeof(struct proto_udp_header),
-                        0, (struct sockaddr *)(&emitter_addr),
-                        sizeof(emitter_addr));
+          for (int i = 0; i < params->num_fd; i++) {
+            // Now transmit header
+            int n = sendto(params->fd[i],
+                          data_dst,
+                          _len + sizeof(struct proto_udp_header), 0,
+                          (struct sockaddr *)&(params->emitter_addr[i]),
+                          sizeof(struct sockaddr_in));
 
-          if (n < 0) {
-            ERROR_COMMENT("Unable to send....\n");
-            continue;
-          }
+            if (n < 0) {
+              ERROR_COMMENT("Unable to send....\n");
+              continue;
+            }
 
 #ifdef DEBUG
-          char name[INET_ADDRSTRLEN];
-          if (inet_ntop(AF_INET, &(emitter_addr.sin_addr),
-                        name, sizeof(name))) {
-            DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
-                        name, ntohs(emitter_addr.sin_port));
-          }
+            char name[INET_ADDRSTRLEN];
+            if (inet_ntop(AF_INET, &(params->emitter_addr[i].sin_addr),
+                          name, sizeof(name))) {
+              DEBUG_PRINT("Sent %d bytes to %s:%d\n", n,
+                          name, ntohs(params->emitter_addr[i].sin_port));
+            }
 #endif
+          }
+
           break;
         }
       }
@@ -187,11 +193,6 @@ int start_collector(collector_params *params) {
   params->listen_ports[1] = 5065;
   params->listen_ports[2] = 5076;
   params->fd_listen_max = 3;
-
-  if (bind_socket(params->iface.address, PROTO_UDP_PORT, 0, &params->fd)) {
-    ERROR_COMMENT("Unable to bind....\n");
-    return -1;
-  }
 
   setup_sockets(params);
   listen_start(params);
@@ -236,5 +237,6 @@ int main(int argc, char *argv[]) {
   start_collector(&params);
 
   // TODO(swilkins) close sockets
+  // TODO(swilkins) free fd and emitter
   // TODO(swilkins) destroy linked list
 }
