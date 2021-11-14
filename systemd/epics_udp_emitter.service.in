@@ -1,5 +1,5 @@
 [Unit]
-Description=EPICS Relay UDP Emitter
+Description=EPICS Relay UDP Emitter (%i)
 After=network.target
 StartLimitIntervalSec=0
 
@@ -8,7 +8,7 @@ Type=simple
 Restart=always
 RestartSec=20
 User=root
-ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_emitter
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/epics_udp_emitter -f @CMAKE_INSTALL_FULL_SYSCONFDIR@/epics-relay_%i.conf
 
 [Install]
 WantedBy=multi-user.target

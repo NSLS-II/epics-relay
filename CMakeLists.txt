@@ -132,8 +132,8 @@ target_link_libraries(epics_udp_emitter PRIVATE pcre2-8 pcap net pthread config)
 install(TARGETS epics_udp_collector RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT binaries)
 install(TARGETS epics_udp_emitter RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT binaries)
 
-configure_file(systemd/epics-relay.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay.conf
+configure_file(systemd/epics-relay_default.conf.in ${CMAKE_CURRENT_BINARY_DIR}/epics-relay_default.conf @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay_default.conf
         DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}
         COMPONENT config)
 

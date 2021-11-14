@@ -37,25 +37,13 @@ VERBOSE=1 make
 %install
 %make_install
 
-%post
-%systemd_post epics_udp_emitter.service
-%systemd_post epics_udp_collector.service
-
-%preun
-%systemd_preun epics_udp_emitter.service
-%systemd_preun epics_udp_collector.service
-
-%postun
-%systemd_postun_with_restart epics_udp_emitter.service
-%systemd_postun_with_restart epics_udp_collector.service
-
 %files
 %license LICENSE
 %{_bindir}/epics_udp_collector
 %{_bindir}/epics_udp_emitter
 %{_unitdir}/epics_udp_emitter.service
 %{_unitdir}/epics_udp_collector.service
-%{_sysconfdir}/epics-relay.conf
+%{_sysconfdir}/epics-relay_default.conf
 
 %changelog
 * Sun Nov 07 2021 Stuart B. Wilkins <swilkins@bnl.gov> - %{version}-0.el8
