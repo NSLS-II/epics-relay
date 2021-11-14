@@ -41,5 +41,4 @@
 
 #define DEFAULT_CONFIG_FILE       "@CMAKE_INSTALL_FULL_SYSCONFDIR@/epics-relay.conf"
 
-
 #endif  // SRC_DEFS_H_
