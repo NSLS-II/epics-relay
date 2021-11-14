@@ -138,13 +138,13 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics-relay_default.conf
         COMPONENT config)
 
 if (SYSTEMD_FOUND)
-  configure_file(systemd/epics_udp_emitter.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter.service @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter.service
+  configure_file(systemd/epics_udp_emitter@.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter@.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_emitter@.service
     DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
     COMPONENT data
   )
-  configure_file(systemd/epics_udp_collector.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector.service @ONLY)
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector.service
+  configure_file(systemd/epics_udp_collector@.service.in ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector@.service @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/epics_udp_collector@.service
     DESTINATION ${SYSTEMD_SERVICES_INSTALL_DIR}
     COMPONENT data
   )
