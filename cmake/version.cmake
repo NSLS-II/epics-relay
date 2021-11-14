@@ -26,9 +26,9 @@ else()
 
 endif()
 
-set(VERSION "const char* ARPTOOLS_GIT_REV=\"${GIT_REV}\";
-const char* ARPTOOLS_GIT_BRANCH=\"${GIT_BRANCH}\";
-const char* ARPTOOLS_GIT_VERSION=\"${GIT_VERSION}${GIT_DIFF}\";")
+set(VERSION "const char* EPICS_RELAY_GIT_REV=\"${GIT_REV}\";
+const char* EPICS_RELAY_GIT_BRANCH=\"${GIT_BRANCH}\";
+const char* EPICS_RELAY_GIT_VERSION=\"${GIT_VERSION}${GIT_DIFF}\";")
 
 if(EXISTS ${CMAKE_BINARY_DIR}/version.c)
   file(READ ${CMAKE_BINARY_DIR}/version.c VERSION_)

@@ -51,6 +51,9 @@
 #include "defs.h"
 
 int debug_flag = 0;
+extern const char* EPICS_RELAY_GIT_REV;
+extern const char* EPICS_RELAY_GIT_BRANCH;
+extern const char* EPICS_RELAY_GIT_VERSION;
 
 static struct option long_options[] = {
   {"debug", no_argument, &debug_flag, -1},
@@ -190,6 +193,9 @@ int main(int argc, char *argv[]) {
   char *config_file = DEFAULT_CONFIG_FILE;
   emitter_params params;
 
+  NOTICE_PRINT("Verstion : %s (%s)\n",
+               EPICS_RELAY_GIT_VERSION, EPICS_RELAY_GIT_REV);
+
   // Parse command line options
   while (1) {
     int option_index = 0;
@@ -254,7 +260,10 @@ int main(int argc, char *argv[]) {
         continue;
       }
 
-      send_udp_packet(&params.libnet, buffer, rc);
+      if (send_udp_packet(&params.libnet, buffer, rc)) {
+        ERROR_COMMENT("Failed to send packet... exiting\n");
+        exit(-1);
+      }
     }
   }
 

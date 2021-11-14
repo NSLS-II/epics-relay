@@ -53,8 +53,6 @@
 #include <netinet/if_ether.h>
 #include <libnet.h>
 
-int debug_flag = 0;
-
 #include "ethernet.h"
 #include "debug.h"
 #include "proto.h"
@@ -62,6 +60,11 @@ int debug_flag = 0;
 #include "collector.h"
 #include "defs.h"
 #include "config.h"
+
+int debug_flag = 0;
+extern const char* EPICS_RELAY_GIT_REV;
+extern const char* EPICS_RELAY_GIT_BRANCH;
+extern const char* EPICS_RELAY_GIT_VERSION;
 
 static struct option long_options[] = {
   {"debug", no_argument, &debug_flag, -1},
@@ -203,6 +206,9 @@ int start_collector(collector_params *params) {
 int main(int argc, char *argv[]) {
   collector_params params;
   char *config_file = DEFAULT_CONFIG_FILE;
+
+  NOTICE_PRINT("Verstion : %s (%s)\n",
+               EPICS_RELAY_GIT_VERSION, EPICS_RELAY_GIT_REV);
 
   // Parse command line options
   while (1) {
