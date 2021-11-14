@@ -41,8 +41,8 @@ VERBOSE=1 make
 %license LICENSE
 %{_bindir}/epics_udp_collector
 %{_bindir}/epics_udp_emitter
-%{_unitdir}/epics_udp_emitter.service
-%{_unitdir}/epics_udp_collector.service
+%{_unitdir}/epics_udp_emitter@.service
+%{_unitdir}/epics_udp_collector@.service
 %{_sysconfdir}/epics-relay_default.conf
 
 %changelog
