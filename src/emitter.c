@@ -87,8 +87,10 @@ void close_libnet(struct libnet_params *params) {
 
 int setup_libnet(struct libnet_params *params, const char *iface) {
 #ifdef LIBNET_MODE_LINK
+  DEBUG_COMMENT("LIBNET_LINK\n");
   params->lnet = libnet_init(LIBNET_LINK, iface, params->errbuf);
 #else
+  DEBUG_COMMENT("LIBNET_RAW4\n");
   params->lnet = libnet_init(LIBNET_RAW4, iface, params->errbuf);
 #endif
   if (params->lnet == NULL) {

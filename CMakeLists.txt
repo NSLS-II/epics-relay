@@ -53,6 +53,7 @@ option(PEDANTIC             "Compile with pedantic warnings" ON)
 option(DEBUG                "Show debug comments" OFF)
 option(SYSTEMD              "Compile as systemd daemon" ON)
 option(NO_IN_SOURCE_BUILDS  "Prevent in source builds" ON)
+option(LIBNET_MODE_LINK     "Use LINK mode for libnet" OFF)
 
 include(GNUInstallDirs)
 
