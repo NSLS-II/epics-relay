@@ -106,6 +106,10 @@ int setup_libnet(struct libnet_params *params, const char *iface) {
   DEBUG_PRINT("%s hardware address : %s\n", iface,
               int_to_mac(params->hw_addr->ether_addr_octet));
 
+  params->udp_t = 0;
+  params->ipv4_t = 0;
+  params->eth_t = 0;
+
   return 0;
 }
 
