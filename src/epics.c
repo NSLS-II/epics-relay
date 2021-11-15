@@ -286,10 +286,8 @@ int epics_read_packet(char* dest, const char* src, int len,
   }
 
   if (((type & EPICS_TYPE_SEARCH) == EPICS_TYPE_SEARCH) &&
-      (search > 0)) {
-    DEBUG_COMMENT("Valid search packet\n");
-  } else {
-    DEBUG_COMMENT("Invalid search packet\n");
+      (search == 0)) {
+    DEBUG_COMMENT("Invalid search packet (no valid PVs)\n");
     return 0;
   }
 
