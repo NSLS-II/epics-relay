@@ -72,14 +72,29 @@ static struct option long_options[] = {
   {0, 0, 0, 0}
 };
 
+void print_bind_info(int fd) {
+  char ip[16];
+  unsigned int port;
+  struct sockaddr_in addr;
+
+  bzero(&addr, sizeof(addr));
+  socklen_t len = sizeof(addr);
+  getsockname(fd, (struct sockaddr *) &addr, &len);
+  inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip));
+  port = ntohs(addr.sin_port);
+
+  DEBUG_PRINT("Bound to %s:%d\n", ip, port);
+}
+
 int setup_sockets(collector_params *params) {
   for (int i = 0; i < params->num_fd; i++) {
     if (bind_socket(params->iface.address,
-                    params->port[i], 0,
+                    0, 0,
                     &(params->fd[i]))) {
       ERROR_COMMENT("Unable to bind....\n");
       return -1;
     }
+    print_bind_info(params->fd[i]);
   }
 
   for (int i = 0; i < params->fd_listen_max; i++) {
@@ -89,6 +104,7 @@ int setup_sockets(collector_params *params) {
                     1, &params->fd_listen[i])) {
       return -1;
     }
+    print_bind_info(params->fd_listen[i]);
   }
   return 0;
 }
