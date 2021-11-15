@@ -101,6 +101,10 @@ int config_read_emitter(const char* filename, emitter_params *params) {
     strncpy(params->iface_epics_name, str, sizeof(params->iface_epics_name));
   }
 
+  if (!config_setting_lookup_int(emitter, "port", &(params->port))) {
+    params->port = PROTO_UDP_PORT;
+  }
+
   config_destroy(&cfg);
   return 0;
 
@@ -140,7 +144,6 @@ int config_read_collector(const char* filename, collector_params *params) {
     }
   }
 
-
   if (!config_setting_lookup_string(collector, "epics_interface", &str)) {
     get_interface(NULL, &(params->iface_listen));
   } else {
@@ -156,15 +159,16 @@ int config_read_collector(const char* filename, collector_params *params) {
     goto _error;
   }
 
-  if (!config_setting_is_list(emitter)) {
-    ERROR_COMMENT("Emitter must be a list\n");
-    goto _error;
-  }
-
   // Allocate memory
   params->num_fd = config_setting_length(emitter);
   params->fd = (int *)malloc(sizeof(int) * params->num_fd);
   if (!params->fd) {
+    ERROR_COMMENT("Unable to allocate memory\n");
+    goto _error;
+  }
+
+  params->port = (int *)malloc(sizeof(int) * params->num_fd);
+  if (!params->port) {
     ERROR_COMMENT("Unable to allocate memory\n");
     goto _error;
   }
@@ -176,7 +180,16 @@ int config_read_collector(const char* filename, collector_params *params) {
   }
 
   for (int i = 0; i < params->num_fd; i++) {
-    const char* str = config_setting_get_string_elem(emitter, i);
+    config_setting_t *_emitter = config_setting_get_elem(emitter, i);
+    if (!_emitter) {
+      ERROR_COMMENT("Error getting emitter element\n");
+      goto _error;
+    }
+
+    if (!config_setting_lookup_string(_emitter, "hostname", &str)) {
+      ERROR_PRINT("You must specify a hostname in element %d\n", i);
+      goto _error;
+    }
 
     // Convert hostname to IP
     struct hostent *he = gethostbyname(str);
@@ -190,6 +203,12 @@ int config_read_collector(const char* filename, collector_params *params) {
     params->emitter_addr[i].sin_family = AF_INET;
     params->emitter_addr[i].sin_port = htons(PROTO_UDP_PORT);
     params->emitter_addr[i].sin_addr = *((struct in_addr*)he->h_addr);
+
+    // Now get port
+
+    if (!config_setting_lookup_int(_emitter, "port", &(params->port[i]))) {
+      params->port[i] = PROTO_UDP_PORT;
+    }
   }
 
   // Get regex list

@@ -52,6 +52,7 @@ typedef struct {
   int fd_listen_max;
   struct ifdatav4 iface;
   struct ifdatav4 iface_listen;
+  int *port;
   struct epics_pv_filter filter;
 } collector_params;
 

@@ -55,6 +55,7 @@ typedef struct {
   int fd;
   struct ifdatav4 iface;
   struct ifdatav4 iface_epics;
+  int port;
   char iface_epics_name[128];
   struct libnet_params libnet;
 } emitter_params;

@@ -75,7 +75,7 @@ static struct option long_options[] = {
 int setup_sockets(collector_params *params) {
   for (int i = 0; i < params->num_fd; i++) {
     if (bind_socket(params->iface.address,
-                    PROTO_UDP_PORT, 0,
+                    params->port[i], 0,
                     &(params->fd[i]))) {
       ERROR_COMMENT("Unable to bind....\n");
       return -1;

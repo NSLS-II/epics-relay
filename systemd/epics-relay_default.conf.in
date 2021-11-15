@@ -1,7 +1,7 @@
 collector = {
   epics_interface = "enp4s0"
   emitter = (
-    "xf31id1-ws2.nsls2.bnl.local",
+    { hostname = "xf31id1-ws2.nsls2.bnl.local", port = 60000 }
   )
   regex = {
     rules = (

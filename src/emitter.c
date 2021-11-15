@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
 
-  if (bind_socket(params.iface.address, PROTO_UDP_PORT, 0, &params.fd)) {
+  if (bind_socket(params.iface.address, params.port, 0, &params.fd)) {
     ERROR_COMMENT("Unable to bind to socket\n");
     exit(-1);
   }
