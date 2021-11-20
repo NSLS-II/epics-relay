@@ -1,0 +1,5 @@
+{
+  "restructuredtext.confPath": "${workspaceFolder}/build/docs/sphinx",
+  "python.linting.flake8Enabled": true,
+  "python.linting.enabled": true
+}

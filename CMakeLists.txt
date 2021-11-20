@@ -54,6 +54,7 @@ option(DEBUG                "Show debug comments" OFF)
 option(SYSTEMD              "Compile as systemd daemon" ON)
 option(NO_IN_SOURCE_BUILDS  "Prevent in source builds" ON)
 option(LIBNET_MODE_LINK     "Use LINK mode for libnet" OFF)
+option(BUILD_DOCS           "Build documentation" ON)
 
 include(GNUInstallDirs)
 
@@ -127,6 +128,13 @@ find_library(CONFIG_LIBRARY config REQUIRED)
 
 target_link_libraries(epics_udp_collector PRIVATE pcre2-8 pcap net pthread config)
 target_link_libraries(epics_udp_emitter PRIVATE pcre2-8 pcap net pthread config)
+
+# Docs
+
+if(BUILD_DOCS)
+        add_subdirectory(docs/sphinx)
+        add_subdirectory(docs/doxygen)
+endif()
 
 # Install
 
