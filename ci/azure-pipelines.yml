@@ -182,7 +182,7 @@ stages:
         cmake .. -DDEBUG=OFF -DBUILD_DOCS=ON
         VERBOSE=1 make docs
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
-        gh-pages -t -d docs/build --branch gh-pages -u "Azure Pipeline <no-reply@bnl.gov>" -o origin
+        gh-pages -t -d docs/build --branch gh-pages -u "Azure Pipeline <no-reply@bnl.gov>" -r git@github.com:NSLS-II/epics-relay.git
       displayName: Build and publish docs
 
   - job: Publish
