@@ -184,7 +184,7 @@ stages:
         git add docs
         git commit -m "Autopublish docs"
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
-        git push origin HEAD:master
+        git push origin HEAD:main
       displayName: Publish
 
   - job: Publish
