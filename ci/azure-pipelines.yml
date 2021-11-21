@@ -42,7 +42,7 @@ stages:
         rm -rf build
         mkdir build
         cd build
-        $(cmake) .. -DDEBUG=NO
+        $(cmake) .. -DDEBUG=OFF -DBUILD_DOCS=OFF
         VERBOSE=1 make
       displayName: Build
       condition: ne(variables.arch, 'armhf')
@@ -52,7 +52,7 @@ stages:
         rm -rf build
         mkdir build
         cd build
-        $(cmake) .. -DDEBUG=YES
+        $(cmake) .. -DDEBUG=OFF -DBUILD_DOCS=OFF
         VERBOSE=1 make
       displayName: Build (DEBUG Version)
       condition: ne(variables.arch, 'armhf')
@@ -145,6 +145,16 @@ stages:
         artifactName: packages
       displayName: Publish RedHat Packages
       condition: and(succeeded(), eq(variables.pkg_type, 'redhat'), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+
+  - job: BuildDocs
+    dependsOn: Build
+    steps:
+      - task: InstallSSHKey@0
+        inputs:
+          knownHostsEntry: 'SHA256:vU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=='
+          sshPublicKey: '$(PublicKey)'
+          sshPassphrase: '$(PrivateKeyPassphrase)'
+          sshKeySecureFile: 'id_rsa_epics_relay'
 
   - job: Publish
     dependsOn: Package
