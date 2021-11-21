@@ -151,16 +151,8 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
 
-    strategy:
-      matrix:
-        centos8:
-          containerImage: stuwilkins/epics-relay-build-centos8:latest
-          pkg_type: redhat
-          rpmrelease: centos8
-          cmake: cmake
-
     container:
-      image: $[ variables['containerImage'] ]
+      image: stuwilkins/epics-relay-build-centos8:latest
 
     steps:
     - task: InstallSSHKey@0
@@ -174,7 +166,7 @@ stages:
         rm -rf build
         mkdir build
         cd build
-        $(cmake) .. -DDEBUG=OFF -DBUILD_DOCS=ON
+        cmake .. -DDEBUG=OFF -DBUILD_DOCS=ON
         VERBOSE=1 make docs
       displayName: Build
     - script: |
