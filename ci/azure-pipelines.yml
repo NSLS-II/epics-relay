@@ -158,7 +158,9 @@ stages:
 
   - job: BuildDocs
     dependsOn: Build
-    # condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    condition: |
+      and(not(eq(variables['Build.Reason'], 'PullRequest')),
+          eq(variables['Build.SourceBranch'], 'refs/heads/master'))
     pool:
       vmImage: 'ubuntu-latest'
 
@@ -179,16 +181,13 @@ stages:
         cd build
         cmake .. -DDEBUG=OFF -DBUILD_DOCS=ON
         VERBOSE=1 make docs
-      displayName: Build
-    - script: |
-        set -e
         git config --local user.name "Azure Pipeline"
         git config --local user.email "no-reply@bnl.gov"
         git add docs
         git commit -m "Autopublish docs"
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
         gh-pages -t -d docs/build --branch gh-pages
-      displayName: Publish
+      displayName: Build and publish docs
 
   - job: Publish
     dependsOn: Package
