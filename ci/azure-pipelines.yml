@@ -177,6 +177,15 @@ stages:
         $(cmake) .. -DDEBUG=OFF -DBUILD_DOCS=ON
         VERBOSE=1 make docs
       displayName: Build
+    - script: |
+        set -e
+        git config -- local user.name "Azure Pipeline"
+        git config -- local user.email "no-reply@bnl.gov"
+        git add docs
+        git commit -m "Autopublish docs"
+        git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
+        git push
+      displayName: Publish
 
   - job: Publish
     dependsOn: Package

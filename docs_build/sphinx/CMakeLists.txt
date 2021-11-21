@@ -15,6 +15,7 @@ add_custom_target(docs
   -D html_static_path="${CMAKE_CURRENT_SOURCE_DIR}/_static"
   -c "${CMAKE_CURRENT_BINARY_DIR}"
   "${CMAKE_CURRENT_SOURCE_DIR}/"
-  "${CMAKE_CURRENT_BINARY_DIR}/../build"
+  "${CMAKE_SOURCE_DIR}/docs" # build into repository
+#  "${CMAKE_CURRENT_BINARY_DIR}/../build"
   COMMENT "Building HTML documentation with Sphinx"
   DEPENDS docs_doxygen)
