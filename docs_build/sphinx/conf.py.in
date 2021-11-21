@@ -21,7 +21,7 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 project = 'epics-relay'
-copyright = '2021, Stuart B. Wilkins'
+copyright = '2021, Brookhaven National Laboratory'
 author = 'Stuart B. Wilkins'
 
 pipe = Popen('git describe --tags --always', stdout=PIPE, shell=True,
