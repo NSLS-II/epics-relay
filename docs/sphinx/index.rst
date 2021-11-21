@@ -5,6 +5,8 @@ EPICS-Relay
    :maxdepth: 2
    :caption: Contents:
 
+   intro
+
 .. Indices and tables
    ==================
    * :ref:`genindex`
