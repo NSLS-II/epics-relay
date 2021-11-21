@@ -73,6 +73,15 @@ int check_udp_packet(struct ifdatav4 *iface,
 
   struct proto_udp_header *header = (struct proto_udp_header*)buffer;
 
+  // Check magic
+
+  if (header->magic != MAGIC_NUMBER) {
+    ERROR_COMMENT("Invalid packet magic number\n");
+    return -1;
+  }
+
+  // TODO(swilkins): Add version check and type check
+
   // Check packet is NOT from subnet
 
   struct in_addr ip;

@@ -43,11 +43,13 @@
 #define PROTO_VERSION     0x01
 #define PROTO_UDP_PORT    4000
 
+#define MAGIC_NUMBER      0x42375AC1
+
 struct proto_udp_header {
+  uint32_t magic;
   uint8_t version;
-  uint8_t payload_len;
   uint8_t type;
-  uint8_t _pad1;
+  uint16_t payload_len;
   uint32_t src_ip;
   uint32_t dst_ip;
   uint16_t src_port;
