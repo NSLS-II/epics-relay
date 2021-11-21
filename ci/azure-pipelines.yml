@@ -57,6 +57,16 @@ stages:
       displayName: Build (DEBUG Version)
       condition: ne(variables.arch, 'armhf')
 
+    - script: |
+        set -e
+        rm -rf build
+        mkdir build
+        cd build
+        $(cmake) .. -DDEBUG=OFF -DBUILD_DOCS=ON
+        VERBOSE=1 make docs
+      displayName: Build (DEBUG Version)
+      condition: ne(variables.arch, 'armhf')
+
   - job: Package
     dependsOn: Build
     pool:
