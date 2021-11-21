@@ -148,6 +148,20 @@ stages:
 
   - job: BuildDocs
     dependsOn: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    strategy:
+      matrix:
+        centos8:
+          containerImage: stuwilkins/epics-relay-build-centos8:latest
+          pkg_type: redhat
+          rpmrelease: centos8
+          cmake: cmake
+
+    container:
+      image: $[ variables['containerImage'] ]
+
     steps:
     - task: InstallSSHKey@0
       inputs:
