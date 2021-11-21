@@ -183,8 +183,6 @@ stages:
         VERBOSE=1 make docs
         git config --local user.name "Azure Pipeline"
         git config --local user.email "no-reply@bnl.gov"
-        git add docs
-        git commit -m "Autopublish docs"
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
         gh-pages -t -d docs/build --branch gh-pages
       displayName: Build and publish docs
