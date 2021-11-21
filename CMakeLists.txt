@@ -132,8 +132,8 @@ target_link_libraries(epics_udp_emitter PRIVATE pcre2-8 pcap net pthread config)
 # Docs
 
 if(BUILD_DOCS)
-        add_subdirectory(docs_build/sphinx)
-        add_subdirectory(docs_build/doxygen)
+        add_subdirectory(docs/sphinx)
+        add_subdirectory(docs/doxygen)
 endif()
 
 # Install
