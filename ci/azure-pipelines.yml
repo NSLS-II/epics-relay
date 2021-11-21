@@ -165,9 +165,9 @@ stages:
     steps:
     - task: InstallSSHKey@0
       inputs:
-        knownHostsEntry: '$(KNOWNHOSTS)'
-        sshPublicKey: '$(PUBLICKEY)'
-        sshPassphrase: '$(PRIVATEKEYPASSPHRASE)'
+        knownHostsEntry: $(KnownHosts)
+        sshPublicKey: $(PublicKey)
+        sshPassphrase: $(PrivateKeyPassphrase)
         sshKeySecureFile: 'id_rsa_epics_relay'
     - script: |
         set -e
