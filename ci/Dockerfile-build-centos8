@@ -6,6 +6,8 @@ RUN dnf config-manager --set-enabled powertools
 RUN dnf -y update
 RUN dnf -y group install "Development Tools"
 RUN dnf -y install cmake systemd-rpm-macros libpcap-devel libnet-devel \
-                         libconfig-devel systemd-devel pcre2-devel
+                         libconfig-devel systemd-devel pcre2-devel \
+                         doxygen
 RUN dnf -y install python2-pip python3-pip
 RUN pip3 install cpplint
+RUN pip3 install sphinx myst-parser sphinx-rtd-theme
