@@ -181,10 +181,8 @@ stages:
         cd build
         cmake .. -DDEBUG=OFF -DBUILD_DOCS=ON
         VERBOSE=1 make docs
-        git config --local user.name "Azure Pipeline"
-        git config --local user.email "no-reply@bnl.gov"
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
-        gh-pages -t -d docs/build --branch gh-pages
+        gh-pages -t -d docs/build --branch gh-pages -u "Azure Pipeline <no-reply@bnl.gov>" -o origin
       displayName: Build and publish docs
 
   - job: Publish
