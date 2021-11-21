@@ -158,7 +158,7 @@ stages:
 
   - job: BuildDocs
     dependsOn: Build
-    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    # condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
     pool:
       vmImage: 'ubuntu-latest'
 
@@ -187,7 +187,7 @@ stages:
         git add docs
         git commit -m "Autopublish docs"
         git remote set-url --push origin git@github.com:NSLS-II/epics-relay.git
-        git push origin HEAD:main
+        gh-pages -t -d docs/build --branch gh-pages
       displayName: Publish
 
   - job: Publish
