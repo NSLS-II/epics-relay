@@ -40,13 +40,13 @@
 
 #include <stdint.h>
 
-#define PROTO_MAGIC_NUMBER      0x42375AC1
+#define PROTO_MAGIC_NUMBER      0x830a22b077081557
 #define PROTO_VERSION           0x01
 #define PROTO_TYPE              0x01
 #define PROTO_UDP_PORT          4000
 
 struct proto_udp_header {
-  uint32_t magic;
+  uint64_t magic;
   uint8_t version;
   uint8_t type;
   uint16_t payload_len;
@@ -54,8 +54,11 @@ struct proto_udp_header {
   uint32_t dst_ip;
   uint16_t src_port;
   uint16_t dst_port;
-  uint32_t _pad2;
+  uint64_t _pad1;
+  uint64_t _pad2;
   uint64_t _pad3;
 } __attribute__((__packed__));
+
+// protocol "Magic:64,Version:8,Type:8,Payload Length:16,Source IP:32,Destination IP:32,Source Port:16,Destination Port:16,Reserved:192"
 
 #endif  // SRC_PROTO_H_
