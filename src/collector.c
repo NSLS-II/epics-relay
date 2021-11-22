@@ -124,9 +124,9 @@ void listen_start(collector_params *params) {
   struct proto_udp_header *header = (struct proto_udp_header*)data_dst;
   memset(header, 0, sizeof(struct proto_udp_header));
 
-  header->magic = MAGIC_NUMBER;
+  header->magic = PROTO_MAGIC_NUMBER;
   header->version = PROTO_VERSION;
-  header->type = 0;
+  header->type = PROTO_TYPE;
 
   // Find max fd
   int maxfd = intmax(params->fd_listen, params->fd_listen_max);

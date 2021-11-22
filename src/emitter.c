@@ -75,12 +75,20 @@ int check_udp_packet(struct ifdatav4 *iface,
 
   // Check magic
 
-  if (header->magic != MAGIC_NUMBER) {
+  if (header->magic != PROTO_MAGIC_NUMBER) {
     ERROR_COMMENT("Invalid packet magic number\n");
     return -1;
   }
 
-  // TODO(swilkins): Add version check and type check
+  if (header->version != PROTO_VERSION) {
+    ERROR_COMMENT("Invalid packet version\n");
+    return -1;
+  }
+
+  if (header->type != PROTO_TYPE) {
+    ERROR_COMMENT("Invalid packet type\n");
+    return -1;
+  }
 
   // Check packet is NOT from subnet
 

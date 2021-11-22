@@ -40,10 +40,10 @@
 
 #include <stdint.h>
 
-#define PROTO_VERSION     0x01
-#define PROTO_UDP_PORT    4000
-
-#define MAGIC_NUMBER      0x42375AC1
+#define PROTO_MAGIC_NUMBER      0x42375AC1
+#define PROTO_VERSION           0x01
+#define PROTO_TYPE              0x01
+#define PROTO_UDP_PORT          4000
 
 struct proto_udp_header {
   uint32_t magic;
