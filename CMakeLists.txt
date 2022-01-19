@@ -91,6 +91,10 @@ if(CPPLINT_CHECK)
   message(STATUS "Checking CXX Code via cpplint")
 endif()
 
+if(LIBNET_MODE_LINK)
+  add_compile_options(-DLIBNET_MODE_LINK)
+endif()
+
 # Add __FILENAME__ with short path
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -D__FILENAME__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath $<))\"'")
 

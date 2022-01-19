@@ -111,8 +111,6 @@ int setup_sockets(collector_params *params) {
 
 void listen_start(collector_params *params) {
   fd_set socks;
-  struct timeval timeout;
-  timeout.tv_sec = 1; timeout.tv_usec = 0;
 
   FD_ZERO(&socks);
 
@@ -138,7 +136,7 @@ void listen_start(collector_params *params) {
     }
 
     // Setup select for multiple descriptors
-    select(maxfd, &socks, NULL, NULL, &timeout);
+    select(maxfd, &socks, NULL, NULL, NULL);
 
     struct sockaddr_in si;
     unsigned slen = sizeof(struct sockaddr);

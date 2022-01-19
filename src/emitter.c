@@ -76,7 +76,7 @@ int check_udp_packet(struct ifdatav4 *iface,
   // Check magic
 
   if (header->magic != PROTO_MAGIC_NUMBER) {
-    ERROR_COMMENT("Invalid packet magic number\n");
+    ERROR_PRINT("Invalid packet magic number 0x%lx\n", header->magic);
     return -1;
   }
 
