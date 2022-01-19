@@ -59,6 +59,6 @@ struct proto_udp_header {
   uint64_t _pad3;
 } __attribute__((__packed__));
 
-// protocol "Magic:64,Version:8,Type:8,Payload Length:16,Source IP:32,Destination IP:32,Source Port:16,Destination Port:16,Reserved:192"
+// protocol "Magic:64,Version:8,Type:8,Payload Length:16,Source IP:32,Destination IP:32,Source Port:16,Destination Port:16,Reserved:192"  // NOLINT
 
 #endif  // SRC_PROTO_H_
